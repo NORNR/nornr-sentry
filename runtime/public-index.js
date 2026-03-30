@@ -165,15 +165,14 @@ async function showServeSurface({ parsed = {}, server, buildView, renderText, na
       },
     });
     instance = render(renderApp());
-    const activityTimer = parsed.serveActivityTracker?.snapshot
-      ? setInterval(() => {
+    const unsubscribeActivity = typeof parsed.serveActivityTracker?.subscribe === "function"
+      ? parsed.serveActivityTracker.subscribe(() => {
         currentOptions = decorateServeOptions(currentOptions);
         instance.rerender(renderApp());
-      }, 1500)
+      })
       : null;
-    activityTimer?.unref?.();
     const finalize = () => {
-      if (activityTimer) clearInterval(activityTimer);
+      unsubscribeActivity?.();
     };
     server.on("close", finalize);
   });

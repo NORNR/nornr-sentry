@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createHash } from "node:crypto";
 import { Box, Text, useInput } from "ink";
 import { buildWelcomeView, resolveSentryPaletteCommand } from "../runtime/welcome.js";
@@ -102,6 +102,13 @@ function createAdaptiveTheme({ width = 0, height = 0, screenshotMode = false, pa
 function sliceAdaptiveLines(lines = [], limit = Number.POSITIVE_INFINITY) {
   if (!Number.isFinite(limit)) return Array.isArray(lines) ? lines : [];
   return (Array.isArray(lines) ? lines : []).slice(0, Math.max(0, limit));
+}
+
+function splitIntoColumns(items = [], columnCount = 2) {
+  const normalized = Array.isArray(items) ? items : [];
+  const count = Math.max(1, Number(columnCount || 2));
+  const size = Math.ceil(normalized.length / count);
+  return Array.from({ length: count }, (_, index) => normalized.slice(index * size, (index + 1) * size)).filter((column) => column.length);
 }
 
 function BottomActionBar({ items = [] }) {
@@ -361,7 +368,15 @@ function ViewportGuardCard({ guard, screenshotMode = false }) {
 
 function InfoCard({ label, children, borderColor = "gray", screenshotMode = false, compactVertical = false, minimal = false, focused = false, focusColor = "white", width = undefined }) {
   const resolvedBorderColor = focused ? focusColor : borderColor;
-  const resolvedLabelColor = focused ? focusColor : borderColor === "red" ? "red" : borderColor === "yellow" ? "yellow" : "gray";
+  const resolvedLabelColor = focused
+    ? focusColor
+    : borderColor === "red"
+      ? "red"
+      : borderColor === "yellow"
+        ? "yellow"
+        : borderColor === "green"
+          ? "green"
+          : "gray";
   if (minimal) {
     return React.createElement(
       Box,
@@ -500,32 +515,43 @@ function CompactWelcomeCard({ guidedSetup = null, guidedDismissed = false, ultra
   );
 }
 
-function SurfaceSectionCard({ section = {}, width = 80, compactVertical = false, minimal = false, interactive = false, focused = false, selectedLabel = "" }) {
+function SurfaceSectionCard({ section = {}, width = 80, compactVertical = false, minimal = false, interactive = false, focused = false, selectedLabel = "", selectedKey = "" }) {
   const narrow = width < 74;
+  const compactEntries = Boolean(section.compactEntries);
   const lineNodes = (section.lines || []).map((line, index) =>
     React.createElement(Text, { key: `surface-line-${section.label}-${index}` }, line),
   );
   const entryNodes = (section.entries || []).flatMap((entry, index) => {
     const nodes = [];
-    const selected = String(selectedLabel || "").trim() === String(entry.label || "").trim();
+    const entrySelectionKey = String(entry.selectionKey || entry.meta?.filePath || entry.label || `${section.label}-${index}`).trim();
+    const selected = selectedKey
+      ? String(selectedKey).trim() === entrySelectionKey
+      : String(selectedLabel || "").trim() === String(entry.label || "").trim();
+    const entryTone = String(entry.tone || entry.meta?.tone || "neutral").trim() || "neutral";
+    const detailLines = compactEntries && Array.isArray(entry.compactDetailLines) && entry.compactDetailLines.length
+      ? entry.compactDetailLines
+      : (entry.detailLines || []);
+    const commandLines = compactEntries && Array.isArray(entry.compactCommandLines) && entry.compactCommandLines.length
+      ? entry.compactCommandLines
+      : (entry.commandLines || []);
     if (index > 0) {
-      nodes.push(React.createElement(Box, { key: `surface-gap-${section.label}-${index}`, marginBottom: compactVertical ? 0 : 1 }));
+      nodes.push(React.createElement(Box, { key: `surface-gap-${section.label}-${index}`, marginBottom: compactVertical || compactEntries ? 0 : 1 }));
     }
     nodes.push(
       React.createElement(
         Box,
         {
-          key: `surface-entry-${section.label}-${entry.label || index}`,
+          key: `surface-entry-${section.label}-${entrySelectionKey || index}`,
           flexDirection: "column",
-          marginBottom: 0,
+          marginBottom: compactEntries ? 0 : 0,
         },
         entry.label
           ? interactive
             ? React.createElement(SelectableTextRow, { label: entry.label, active: selected, tone: "neutral" })
             : React.createElement(Text, { bold: true }, entry.label)
           : null,
-        ...((entry.commandLines || []).map((line, lineIndex) => React.createElement(Text, { key: `surface-command-${entry.label || index}-${lineIndex}` }, `  ${line}`))),
-        ...((entry.detailLines || []).map((line, lineIndex) => React.createElement(Text, { key: `surface-detail-${entry.label || index}-${lineIndex}`, color: "gray", dimColor: true }, `  ${line}`))),
+        ...((commandLines || []).map((line, lineIndex) => React.createElement(Text, { key: `surface-command-${entrySelectionKey || index}-${lineIndex}`, color: compactEntries && lineIndex === 0 ? toneColor(entryTone) : undefined, bold: compactEntries && lineIndex === 0 }, `  ${line}`))),
+        ...((detailLines || []).map((line, lineIndex) => React.createElement(Text, { key: `surface-detail-${entrySelectionKey || index}-${lineIndex}`, color: compactEntries && lineIndex === 0 ? "gray" : "gray", dimColor: true }, `  ${line}`))),
       ),
     );
     return nodes;
@@ -663,6 +689,7 @@ export function SentrySurfaceApp({ buildView, data, paletteOptions = {}, navigat
       .map((entry) => ({
         ...entry,
         label: String(entry.label || "").trim(),
+        selectionKey: String(entry.selectionKey || entry.meta?.filePath || entry.label || `${section.label}-${sectionIndex}`).trim(),
         argv: entry.argv,
         sectionIndex,
       }))),
@@ -681,9 +708,14 @@ export function SentrySurfaceApp({ buildView, data, paletteOptions = {}, navigat
       .filter((section) => section.indices.length);
   }, [interactive, interactiveEntries, visibleSections]);
   const [selectedEntryIndex, setSelectedEntryIndex] = useState(0);
+  const initialSelectionKeyRef = useRef("");
   const selectedEntry = interactiveEntries[selectedEntryIndex] || interactiveEntries[0] || null;
   const selectionActions = useMemo(
     () => (typeof view.buildSelectionActions === "function" ? (view.buildSelectionActions(selectedEntry) || []) : []),
+    [selectedEntry, view],
+  );
+  const selectionSummary = useMemo(
+    () => (typeof view.buildSelectionSummary === "function" ? view.buildSelectionSummary(selectedEntry) : null),
     [selectedEntry, view],
   );
   const activeSectionIndex = useMemo(() => {
@@ -695,12 +727,23 @@ export function SentrySurfaceApp({ buildView, data, paletteOptions = {}, navigat
     setSelectedEntryIndex((current) => Math.max(0, Math.min(current, Math.max(0, interactiveEntries.length - 1))));
   }, [interactiveEntries.length]);
 
+  const preferredSectionLabel = String(view.initialSelectionSectionLabel || "").trim();
+  const interactiveSelectionKey = useMemo(
+    () => `${preferredSectionLabel}::${interactiveEntries.map((entry) => `${entry.sectionIndex}:${entry.selectionKey}`).join("|")}`,
+    [interactiveEntries, preferredSectionLabel],
+  );
+
   useEffect(() => {
-    const preferredSectionLabel = String(view.initialSelectionSectionLabel || "").trim();
-    if (!preferredSectionLabel || !interactiveEntries.length) return;
-    const preferredIndex = interactiveEntries.findIndex((entry) => String(visibleSections[entry.sectionIndex]?.label || "").trim() === preferredSectionLabel);
-    if (preferredIndex >= 0) setSelectedEntryIndex(preferredIndex);
-  }, [interactiveEntries, view.initialSelectionSectionLabel, visibleSections]);
+    if (!interactiveEntries.length) return;
+    if (initialSelectionKeyRef.current === interactiveSelectionKey) return;
+    initialSelectionKeyRef.current = interactiveSelectionKey;
+    setSelectedEntryIndex((current) => {
+      if (current >= 0 && current < interactiveEntries.length) return current;
+      if (!preferredSectionLabel) return 0;
+      const preferredIndex = interactiveEntries.findIndex((entry) => String(visibleSections[entry.sectionIndex]?.label || "").trim() === preferredSectionLabel);
+      return preferredIndex >= 0 ? preferredIndex : 0;
+    });
+  }, [interactiveEntries, interactiveSelectionKey, preferredSectionLabel, visibleSections]);
 
   useInput((input, key) => {
     if (palette.handlePaletteInput(input, key)) return;
@@ -717,20 +760,27 @@ export function SentrySurfaceApp({ buildView, data, paletteOptions = {}, navigat
       return;
     }
     if (interactive) {
-      if (key.tab || input === "\t" || input === "\u001b[Z") {
+      if (key.tab || input === "\t" || input === "\u001b[Z" || key.leftArrow || key.rightArrow) {
         const sectionCount = Math.max(1, interactiveSections.length);
-        const delta = key.shift || input === "\u001b[Z" ? -1 : 1;
+        const delta = key.leftArrow || key.shift || input === "\u001b[Z" ? -1 : 1;
         const nextSectionIndex = (((activeSectionIndex + delta) % sectionCount) + sectionCount) % sectionCount;
+        const currentSection = interactiveSections[activeSectionIndex] || null;
         const nextSection = interactiveSections[nextSectionIndex] || null;
-        if (nextSection?.indices?.length) setSelectedEntryIndex(nextSection.indices[0]);
+        if (nextSection?.indices?.length) {
+          const currentPosition = Math.max(0, currentSection?.indices?.indexOf(selectedEntryIndex) ?? 0);
+          const nextPosition = Math.min(currentPosition, nextSection.indices.length - 1);
+          setSelectedEntryIndex(nextSection.indices[nextPosition] ?? nextSection.indices[0]);
+        }
         return;
       }
-      if (key.upArrow || key.leftArrow) {
-        setSelectedEntryIndex((current) => (current === 0 ? interactiveEntries.length - 1 : current - 1));
-        return;
-      }
-      if (key.downArrow || key.rightArrow) {
-        setSelectedEntryIndex((current) => (current + 1) % interactiveEntries.length);
+      if (key.upArrow || key.downArrow) {
+        const currentSection = interactiveSections[activeSectionIndex] || null;
+        const indices = currentSection?.indices?.length ? currentSection.indices : interactiveEntries.map((_, index) => index);
+        const currentPosition = Math.max(0, indices.indexOf(selectedEntryIndex));
+        const nextPosition = key.upArrow
+          ? (currentPosition === 0 ? Math.max(0, indices.length - 1) : currentPosition - 1)
+          : (indices.length ? (currentPosition + 1) % indices.length : 0);
+        setSelectedEntryIndex(indices[nextPosition] || 0);
         return;
       }
       if (key.return && selectedEntry?.argv?.length) {
@@ -757,6 +807,64 @@ export function SentrySurfaceApp({ buildView, data, paletteOptions = {}, navigat
     );
   }
 
+  const selectionSummaryNode = selectionSummary
+    ? React.createElement(
+      Box,
+      { marginTop: 0 },
+      React.createElement(
+        InfoCard,
+        {
+          label: selectionSummary.label || "Selected item",
+          borderColor: selectionSummary.tone === "critical" ? "red" : selectionSummary.tone === "caution" ? "yellow" : selectionSummary.tone === "positive" ? "green" : "gray",
+          compactVertical: theme.compactVertical,
+          minimal: theme.minimal,
+          focused: true,
+          focusColor: selectionSummary.tone === "critical" ? "red" : selectionSummary.tone === "caution" ? "yellow" : selectionSummary.tone === "positive" ? "green" : "white",
+          width: "100%",
+        },
+        ...((selectionSummary.lines || []).map((line, index) => React.createElement(
+          Text,
+          {
+            key: `selection-summary-${index}`,
+            color: index === 0 ? toneColor(selectionSummary.tone || "neutral") : index === 1 ? "white" : index === 2 ? "gray" : undefined,
+            dimColor: index === 2,
+            bold: index <= 1,
+          },
+          line,
+        ))),
+      ),
+    )
+    : null;
+  const selectionActionsNode = selectionActions.length
+    ? React.createElement(
+      Box,
+      { marginTop: theme.compactVertical ? 0 : 1 },
+      React.createElement(
+        InfoCard,
+        { label: selectedEntry?.meta?.kind === "record" ? "Selected proof actions" : "Selected actions", borderColor: "gray", compactVertical: theme.compactVertical, minimal: theme.minimal, width: "100%" },
+        ...selectionActions.map((action, index) => React.createElement(
+          Box,
+          { key: `selection-action-${index}`, flexDirection: "column", marginBottom: 0 },
+          React.createElement(Text, { bold: true }, `${index + 1} ${action.label}`),
+          ...((action.commandLines || []).slice(0, 1).map((line, lineIndex) => React.createElement(Text, { key: `selection-action-command-${index}-${lineIndex}` }, `  ${line}`))),
+          ...((action.detailLines || []).slice(0, 1).map((line, lineIndex) => React.createElement(Text, { key: `selection-action-detail-${index}-${lineIndex}`, color: "gray", dimColor: true }, `  ${line}`))),
+        )),
+      ),
+    )
+    : null;
+  const isRecordFocusedSurface = Boolean(view.twoColumn && !theme.reduced && selectedEntry?.meta?.kind === "record");
+  const recordPrimarySection = isRecordFocusedSurface ? visibleSections.find((section) => section.label === "Proof queue") || visibleSections[0] : null;
+  const recordSecondarySections = isRecordFocusedSurface
+    ? visibleSections.filter((section) => section !== recordPrimarySection)
+    : [];
+  const recordFocusedSidebarSection = isRecordFocusedSurface
+    ? recordSecondarySections.find((section) => visibleSections.indexOf(section) === activeSectionIndex && section.label !== "Proof queue") || null
+    : null;
+  const recordDefaultSidebarSection = isRecordFocusedSurface
+    ? recordSecondarySections.find((section) => section.label === "Proof posture") || recordSecondarySections[0] || null
+    : null;
+  const recordRenderedSidebarSection = recordFocusedSidebarSection || recordDefaultSidebarSection;
+
   return React.createElement(ScreenFrame, {
     theme,
     hero: React.createElement(WelcomeHeroBanner, {
@@ -768,8 +876,8 @@ export function SentrySurfaceApp({ buildView, data, paletteOptions = {}, navigat
     footer: view.footer || [],
     hotkeys: interactive
       ? backArgv?.length
-        ? theme.minimal ? `Esc/b back · h home · ↑/↓ choose · Enter open${selectionActions.length ? ` · 1-${selectionActions.length} actions` : ""} · q close · : palette` : theme.reduced ? `Esc/b back · h home · ↑/↓ choose · Enter open${selectionActions.length ? ` · 1-${selectionActions.length} actions` : ""} · q close · : palette` : `Esc/b back · h home · ←/→ or ↑/↓ choose · Enter open${selectionActions.length ? ` · 1-${selectionActions.length} actions` : ""} · q close`
-        : theme.minimal ? `h home · ↑/↓ choose · Enter open${selectionActions.length ? ` · 1-${selectionActions.length} actions` : ""} · q close · : palette` : theme.reduced ? `h home · ↑/↓ choose · Enter open${selectionActions.length ? ` · 1-${selectionActions.length} actions` : ""} · q close · : palette` : `h home · ←/→ or ↑/↓ choose · Enter open${selectionActions.length ? ` · 1-${selectionActions.length} actions` : ""} · q close`
+        ? theme.minimal ? `Esc/b back · h home · ←/→ section · ↑/↓ choose · Enter open${selectionActions.length ? ` · 1-${selectionActions.length} actions` : ""} · q close · : palette` : theme.reduced ? `Esc/b back · h home · ←/→ section · ↑/↓ choose · Enter open${selectionActions.length ? ` · 1-${selectionActions.length} actions` : ""} · q close · : palette` : `Esc/b back · h home · ←/→ section · ↑/↓ choose · Enter open${selectionActions.length ? ` · 1-${selectionActions.length} actions` : ""} · q close`
+        : theme.minimal ? `h home · ←/→ section · ↑/↓ choose · Enter open${selectionActions.length ? ` · 1-${selectionActions.length} actions` : ""} · q close · : palette` : theme.reduced ? `h home · ←/→ section · ↑/↓ choose · Enter open${selectionActions.length ? ` · 1-${selectionActions.length} actions` : ""} · q close · : palette` : `h home · ←/→ section · ↑/↓ choose · Enter open${selectionActions.length ? ` · 1-${selectionActions.length} actions` : ""} · q close`
       : backArgv?.length
         ? theme.minimal ? "Esc/b back · h home · q close · : palette" : theme.reduced ? "Esc/b back · h home · Enter/q close · : palette" : "Esc/b back · h home · Enter/q close"
         : theme.minimal ? "h home · q close · : palette" : theme.reduced ? "h home · Enter/q close · : palette" : "h home · Enter/q close",
@@ -780,57 +888,139 @@ export function SentrySurfaceApp({ buildView, data, paletteOptions = {}, navigat
   React.createElement(
     React.Fragment,
     null,
-    React.createElement(
-      Box,
-      {
-        flexDirection: theme.reduced ? "column" : view.twoColumn ? "row" : "column",
-        columnGap: theme.reduced ? 0 : view.twoColumn ? 1 : 0,
-      },
-      ...(visibleSections.map((section, index) => React.createElement(
-        Box,
-        {
-          key: section.label,
-          width: !theme.reduced && view.twoColumn ? Math.max(32, Math.floor((stdoutWidth - 5) / 2)) : "100%",
-          flexGrow: !theme.reduced && view.twoColumn ? 1 : 0,
-        },
-        React.createElement(SurfaceSectionCard, {
-          section,
-          width: stdoutWidth,
-          compactVertical: theme.compactVertical,
-          minimal: theme.minimal,
-          interactive,
-          focused: interactive ? activeSectionIndex === index : false,
-          selectedLabel: interactive ? selectedEntry?.label || "" : "",
-        }),
-      ))),
-    ),
-    selectionActions.length
+    isRecordFocusedSurface
       ? React.createElement(
         Box,
-        { marginTop: theme.compactVertical ? 0 : 1 },
+        {
+          flexDirection: "row",
+          columnGap: 1,
+          alignItems: "flex-start",
+        },
         React.createElement(
-          InfoCard,
-          { label: selectedEntry?.meta?.kind === "record" ? "Selected record actions" : "Selected actions", borderColor: "gray", compactVertical: theme.compactVertical, minimal: theme.minimal, width: "100%" },
-          ...selectionActions.map((action, index) => React.createElement(
-            Box,
-            { key: `selection-action-${index}`, flexDirection: "column", marginBottom: 0 },
-            React.createElement(Text, { bold: true }, `${index + 1} ${action.label}`),
-            ...((action.commandLines || []).slice(0, 1).map((line, lineIndex) => React.createElement(Text, { key: `selection-action-command-${index}-${lineIndex}` }, `  ${line}`))),
-            ...((action.detailLines || []).slice(0, 1).map((line, lineIndex) => React.createElement(Text, { key: `selection-action-detail-${index}-${lineIndex}`, color: "gray", dimColor: true }, `  ${line}`))),
-          )),
+          Box,
+          {
+            key: "surface-column-proof-queue",
+            flexDirection: "column",
+            width: Math.max(36, Math.floor((stdoutWidth - 5) / 2)),
+            flexGrow: 1,
+          },
+          recordPrimarySection
+            ? React.createElement(
+              Box,
+              { key: recordPrimarySection.label, marginBottom: 1 },
+              React.createElement(SurfaceSectionCard, {
+                section: recordPrimarySection,
+                width: stdoutWidth,
+                compactVertical: theme.compactVertical,
+                minimal: theme.minimal,
+                interactive,
+                focused: interactive ? activeSectionIndex === visibleSections.indexOf(recordPrimarySection) : false,
+                selectedLabel: interactive ? selectedEntry?.label || "" : "",
+                selectedKey: interactive ? selectedEntry?.selectionKey || "" : "",
+              }),
+            )
+            : null,
+        ),
+        React.createElement(
+          Box,
+          {
+            key: "surface-column-proof-detail",
+            flexDirection: "column",
+            width: Math.max(32, Math.floor((stdoutWidth - 5) / 2)),
+            flexGrow: 1,
+          },
+          selectionSummaryNode,
+          recordRenderedSidebarSection
+            ? React.createElement(
+              Box,
+              { key: recordRenderedSidebarSection.label, marginTop: 0, marginBottom: 1 },
+              React.createElement(SurfaceSectionCard, {
+                section: recordRenderedSidebarSection,
+                width: stdoutWidth,
+                compactVertical: theme.compactVertical,
+                minimal: theme.minimal,
+                interactive,
+                focused: interactive ? activeSectionIndex === visibleSections.indexOf(recordRenderedSidebarSection) : false,
+                selectedLabel: interactive ? selectedEntry?.label || "" : "",
+                selectedKey: interactive ? selectedEntry?.selectionKey || "" : "",
+              }),
+            )
+            : null,
         ),
       )
-      : null,
+      : view.twoColumn && !theme.reduced
+        ? React.createElement(
+          Box,
+          {
+            flexDirection: "row",
+            columnGap: 1,
+            alignItems: "flex-start",
+          },
+          ...splitIntoColumns(visibleSections, 2).map((columnSections, columnIndex) => React.createElement(
+            Box,
+            {
+              key: `surface-column-${columnIndex}`,
+              flexDirection: "column",
+              width: Math.max(32, Math.floor((stdoutWidth - 5) / 2)),
+              flexGrow: 1,
+            },
+            ...columnSections.map((section) => {
+              const originalIndex = visibleSections.indexOf(section);
+              return React.createElement(
+                Box,
+                { key: section.label, marginBottom: 1 },
+                React.createElement(SurfaceSectionCard, {
+                  section,
+                  width: stdoutWidth,
+                  compactVertical: theme.compactVertical,
+                  minimal: theme.minimal,
+                  interactive,
+                  focused: interactive ? activeSectionIndex === originalIndex : false,
+                  selectedLabel: interactive ? selectedEntry?.label || "" : "",
+                  selectedKey: interactive ? selectedEntry?.selectionKey || "" : "",
+                }),
+              );
+            }),
+          )),
+        )
+        : React.createElement(
+          Box,
+          {
+            flexDirection: "column",
+            columnGap: 0,
+          },
+          ...(visibleSections.map((section, index) => React.createElement(
+            Box,
+            {
+              key: section.label,
+              width: "100%",
+            },
+            React.createElement(SurfaceSectionCard, {
+              section,
+              width: stdoutWidth,
+              compactVertical: theme.compactVertical,
+              minimal: theme.minimal,
+              interactive,
+              focused: interactive ? activeSectionIndex === index : false,
+              selectedLabel: interactive ? selectedEntry?.label || "" : "",
+              selectedKey: interactive ? selectedEntry?.selectionKey || "" : "",
+            }),
+          ))),
+        ),
+    !isRecordFocusedSurface ? selectionSummaryNode : null,
+    !isRecordFocusedSurface ? selectionActionsNode : null,
     React.createElement(
       CompactStateNote,
       { theme },
-      hiddenSections > 0
-        ? `${hiddenSections} more section${hiddenSections === 1 ? "" : "s"} appear in a taller window.`
-        : selectionActions.length
-          ? `Open the selected item with Enter, or use 1-${selectionActions.length} for the quick actions above.`
-          : interactive && theme.reduced
-            ? "Choose a replay scenario here, then open it with Enter."
-            : theme.reduced ? "Compact operator view keeps the top of the lane in sight." : "",
+      isRecordFocusedSurface
+        ? "←/→ swaps the right-hand proof panel while the queue stays in view."
+        : hiddenSections > 0
+          ? `${hiddenSections} more section${hiddenSections === 1 ? "" : "s"} appear in a taller window.`
+          : selectionActions.length
+            ? `Open the selected item with Enter, or use 1-${selectionActions.length} for the quick actions above.`
+            : interactive && theme.reduced
+              ? "Choose a replay scenario here, then open it with Enter."
+              : theme.reduced ? "Compact operator view keeps the top of the lane in sight." : "",
     ),
   ));
 }

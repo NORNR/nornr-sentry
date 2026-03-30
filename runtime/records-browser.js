@@ -18,10 +18,93 @@ function statusLabel(status = "") {
   return String(status || "unknown").replace(/_/g, " ");
 }
 
+function cinematicStatusLabel(status = "") {
+  if (status === "blocked") return "BLOCKED";
+  if (status === "tighten_mandate") return "TIGHTENED";
+  if (status === "approved_once" || status === "approved") return "APPROVED ONCE";
+  if (status === "shadow_pass") return "SHADOW PASS";
+  return String(statusLabel(status) || "unknown").toUpperCase();
+}
+
+function statusTone(status = "") {
+  if (status === "blocked") return "critical";
+  if (status === "tighten_mandate") return "caution";
+  if (status === "approved_once" || status === "approved") return "positive";
+  return "neutral";
+}
+
 function compact(value = "", maxLength = 78) {
   const normalized = String(value || "").replace(/\s+/g, " ").trim();
   if (normalized.length <= maxLength) return normalized;
   return `${normalized.slice(0, Math.max(0, maxLength - 1)).trimEnd()}…`;
+}
+
+function titleCase(value = "") {
+  return String(value || "")
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function actionClassLabel(actionClass = "") {
+  const normalized = String(actionClass || "unknown").trim() || "unknown";
+  const aliases = {
+    destructive_shell: "Destructive Shell",
+    credential_exfiltration: "Secret Export",
+    write_outside_scope: "Write Outside Scope",
+    vendor_mutation: "Vendor Change",
+    outbound_message: "Outbound Message",
+    paid_action: "Paid Action",
+    production_mutation: "Production Mutation",
+    read_only: "Read-only",
+  };
+  if (aliases[normalized]) return aliases[normalized];
+  return titleCase(normalized.replace(/_/g, " "));
+}
+
+function conciseRecordTitle(record = {}) {
+  const actionClass = String(record?.intent?.actionClass || "unknown").trim() || "unknown";
+  const raw = String(record?.intent?.title || "").replace(/\s+/g, " ").trim();
+  const normalized = raw
+    .replace(/^attempt to\s+/i, "")
+    .replace(/^request to\s+/i, "")
+    .replace(/^try to\s+/i, "")
+    .trim();
+  return compact(normalized || actionClassLabel(actionClass), 42);
+}
+
+function operatorActionLabel(action = "") {
+  const normalized = String(action || "").replace(/_/g, " ").trim().toLowerCase();
+  if (!normalized) return "No action";
+  if (normalized === "quit") return "Closed";
+  if (normalized === "none") return "No action";
+  return titleCase(normalized);
+}
+
+function formatRecordedAt(value = "") {
+  const normalized = String(value || "").trim();
+  if (!normalized) return "Unknown time";
+  return normalized.replace("T", " ").replace(/\.\d+Z$/, "Z").slice(0, 19);
+}
+
+function conciseProofReason(reason = "", actionClass = "") {
+  const normalized = String(reason || "").replace(/\s+/g, " ").trim();
+  if (!normalized) return "No primary reason recorded.";
+  const actionLabel = actionClassLabel(actionClass).toLowerCase();
+  if (new RegExp(`^Action class "${String(actionClass || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}" is blocked in the current mandate\.?$`, "i").test(normalized)) {
+    return `${titleCase(actionLabel)} is blocked in the current mandate.`;
+  }
+  if (new RegExp(`^Action class "${String(actionClass || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}" requires explicit review in the current mandate\.?$`, "i").test(normalized)) {
+    return `${titleCase(actionLabel)} requires explicit review.`;
+  }
+  return normalized;
+}
+
+function proofStatusLine(record = {}) {
+  const status = effectiveStatus(record);
+  const actionClass = String(record?.intent?.actionClass || "unknown").trim() || "unknown";
+  return `${cinematicStatusLabel(status)} · ${actionClassLabel(actionClass)}`;
 }
 
 function recordEntry(record = {}, filePath = "", shield = "cursor") {
@@ -29,13 +112,20 @@ function recordEntry(record = {}, filePath = "", shield = "cursor") {
   const actionClass = String(record?.intent?.actionClass || "unknown").trim() || "unknown";
   const operatorAction = String(record?.resolution?.operatorAction || record?.operator?.resolvedAction || "").trim();
   const recordedAt = String(record?.generatedAt || "").trim();
+  const humanReason = conciseProofReason(record?.decision?.primaryReason || "", actionClass);
+  const primaryReason = compact(humanReason, 120);
+  const title = conciseRecordTitle(record);
   return {
-    label: `${actionClass} · ${statusLabel(status)}`,
+    label: title,
+    selectionKey: filePath || `${recordedAt}:${title}`,
     argv: ["--client", shield, "--export-record", filePath],
-    commandLines: [recordedAt ? recordedAt.replace("T", " ").slice(0, 19) : filePath],
+    commandLines: [proofStatusLine(record)],
     detailLines: [
-      operatorAction ? `Operator action: ${operatorAction}` : "Operator action: none",
-      compact(record?.decision?.primaryReason || "No primary reason recorded."),
+      `Captured ${formatRecordedAt(recordedAt)} · Operator ${operatorActionLabel(operatorAction)}`,
+      primaryReason,
+    ],
+    compactDetailLines: [
+      `Captured ${formatRecordedAt(recordedAt)} · ${operatorActionLabel(operatorAction)}`,
     ],
     meta: {
       kind: "record",
@@ -43,6 +133,11 @@ function recordEntry(record = {}, filePath = "", shield = "cursor") {
       status,
       actionClass,
       recordedAt,
+      title,
+      operatorAction,
+      primaryReason,
+      statusLine: proofStatusLine(record),
+      tone: statusTone(status),
     },
   };
 }
@@ -62,27 +157,52 @@ function sortEntries(entries = [], sort = "latest") {
 function filterEntry(shield = "cursor", filter = "all", currentSort = "latest", limit = 12, actionClass = "") {
   const argv = ["--client", shield, "--records", "--records-filter", filter, "--records-sort", currentSort, "--records-limit", String(limit)];
   if (actionClass) argv.push("--records-action-class", actionClass);
-  const command = [`nornr-sentry --client ${shield} --records --records-filter ${filter} --records-sort ${currentSort}`];
-  if (actionClass) command.push(`--records-action-class ${actionClass}`);
+  const details = {
+    all: "Full proof queue across every lane.",
+    blocked: "Only blocked or tightened records.",
+    approved: "Only approved-once records.",
+    shadow: "Only shadow-pass records.",
+  };
   return {
-    label: filter === "all" ? "Show all" : `Show ${filter}`,
+    label: filter === "all" ? "All" : filter === "blocked" ? "Blocked" : filter === "approved" ? "Approved" : "Shadow",
     argv,
-    commandLines: [command.join(" ")],
-    detailLines: ["Refresh the browser with this record filter."],
+    detailLines: [details[filter] || "Refresh the browser with this proof filter."],
   };
 }
 
 function sortEntry(shield = "cursor", currentFilter = "all", sort = "latest", limit = 12, actionClass = "") {
   const argv = ["--client", shield, "--records", "--records-filter", currentFilter, "--records-sort", sort, "--records-limit", String(limit)];
   if (actionClass) argv.push("--records-action-class", actionClass);
-  const command = [`nornr-sentry --client ${shield} --records --records-filter ${currentFilter} --records-sort ${sort}`];
-  if (actionClass) command.push(`--records-action-class ${actionClass}`);
-  return {
-    label: sort === "latest" ? "Sort latest first" : sort === "action" ? "Sort by action class" : "Sort by status",
-    argv,
-    commandLines: [command.join(" ")],
-    detailLines: ["Refresh the browser with this record sort order."],
+  const details = {
+    latest: "Newest records first.",
+    action: "Group by lane.",
+    status: "Group by outcome.",
   };
+  return {
+    label: sort === "latest" ? "Latest" : sort === "action" ? "By lane" : "By outcome",
+    argv,
+    detailLines: [details[sort] || "Refresh the browser with this proof sort order."],
+  };
+}
+
+function emptyRecordActionEntries(shield = "cursor") {
+  return [
+    {
+      label: "Run demo stop",
+      argv: ["--client", shield, "--demo", "destructive_shell"],
+      detailLines: ["Create one real stop locally, then come back here for the defended record."],
+    },
+    {
+      label: "Replay attacks",
+      argv: ["--client", shield, "--policy-replay"],
+      detailLines: ["Open the synthetic attack chooser if you want to stress the mandate first."],
+    },
+    {
+      label: "Open proof hub",
+      argv: ["--client", shield, "--proof-hub"],
+      detailLines: ["See where real defended records fit beside replay and export flows."],
+    },
+  ];
 }
 
 function matchesFilter(status = "", filter = "all") {
@@ -111,7 +231,8 @@ export async function buildRecordsBrowser(options = {}) {
   }
 
   const counts = {
-    total: records.length,
+    total: files.length,
+    loaded: records.length,
     blocked: records.filter(({ record }) => {
       const status = effectiveStatus(record);
       return status === "blocked" || status === "tighten_mandate";
@@ -145,30 +266,29 @@ export async function buildRecordsBrowser(options = {}) {
       filterEntry(shield, "shadow", activeSort, limit, activeActionClass),
     ],
     laneEntries: Array.from(new Set(records.map(({ record }) => String(record?.intent?.actionClass || "").trim()).filter(Boolean))).slice(0, 6).map((actionClass) => ({
-      label: activeActionClass === actionClass ? `Lane ${actionClass} (active)` : `Lane ${actionClass}`,
+      label: activeActionClass === actionClass ? `${actionClassLabel(actionClass)} · active` : actionClassLabel(actionClass),
       argv: ["--client", shield, "--records", "--records-filter", activeFilter, "--records-sort", activeSort, "--records-limit", String(limit), "--records-action-class", actionClass],
-      commandLines: [`nornr-sentry --client ${shield} --records --records-filter ${activeFilter} --records-sort ${activeSort} --records-action-class ${actionClass}`],
-      detailLines: ["Focus the browser on one action class lane."],
+      detailLines: ["Focus one lane."],
     })),
     sortEntries: [
       sortEntry(shield, activeFilter, "latest", limit, activeActionClass),
       sortEntry(shield, activeFilter, "action", limit, activeActionClass),
       sortEntry(shield, activeFilter, "status", limit, activeActionClass),
     ],
-    browserActions: [
-      {
-        label: "Open proof hub",
-        argv: ["--client", shield, "--proof-hub"],
-        commandLines: [`nornr-sentry --client ${shield} --proof-hub`],
-        detailLines: ["Compare real defended records, local replay, and synthetic replay."],
-      },
-      {
-        label: "Replay local records",
-        argv: ["--client", shield, "--record-replay"],
-        commandLines: [`nornr-sentry --client ${shield} --record-replay`],
-        detailLines: ["Re-evaluate the local proof objects under the current mandate."],
-      },
-    ],
+    browserActions: records.length
+      ? [
+        {
+          label: "Open proof hub",
+          argv: ["--client", shield, "--proof-hub"],
+          detailLines: ["Compare real records, local replay, and synthetic replay."],
+        },
+        {
+          label: "Replay local records",
+          argv: ["--client", shield, "--record-replay"],
+          detailLines: ["Re-evaluate the local proof queue under the current mandate."],
+        },
+      ]
+      : emptyRecordActionEntries(shield),
     entries: sortEntries(filteredRecords.map(({ filePath, record }) => recordEntry(record, filePath, shield)), activeSort),
   };
 }
@@ -181,92 +301,146 @@ function buildSelectedRecordActions(browser = {}, selectedEntry = null) {
   const baseActionLabel = selectedEntry?.label || "Selected record";
   return [
     {
-      label: `Open ${baseActionLabel}`,
+      label: "Open record",
       argv: ["--client", shield, "--export-record", selectedMeta.filePath],
-      commandLines: [`nornr-sentry --client ${shield} --export-record ${selectedMeta.filePath}`],
       detailLines: ["Open the defended record export surface for this proof object."],
     },
     {
-      label: actionClass ? `Focus lane ${actionClass}` : "Focus lane",
+      label: actionClass ? `Focus ${actionClassLabel(actionClass)}` : "Focus lane",
       argv: actionClass
         ? ["--client", shield, "--records", "--records-filter", browser.activeFilter || "all", "--records-sort", browser.activeSort || "latest", "--records-limit", String(browser.recordsLimit || 12), "--records-action-class", actionClass]
         : ["--client", shield, "--records"],
-      commandLines: actionClass
-        ? [`nornr-sentry --client ${shield} --records --records-filter ${browser.activeFilter || "all"} --records-sort ${browser.activeSort || "latest"} --records-action-class ${actionClass}`]
-        : [`nornr-sentry --client ${shield} --records`],
-      detailLines: ["Stay in the real records browser, but narrow the lane around this proof object."],
+      detailLines: ["Stay in records, but narrow the lane around this proof object."],
     },
     {
-      label: "Replay local records",
+      label: "Replay local",
       argv: ["--client", shield, "--record-replay"],
-      commandLines: [`nornr-sentry --client ${shield} --record-replay`],
-      detailLines: ["Compare the current mandate against the full local proof history."],
+      detailLines: ["Compare the current mandate against the local proof history."],
     },
     {
-      label: "Open proof hub",
+      label: "Proof hub",
       argv: ["--client", shield, "--proof-hub"],
-      commandLines: [`nornr-sentry --client ${shield} --proof-hub`],
-      detailLines: ["Jump to the real-vs-synthetic proof chooser from this record."],
+      detailLines: ["Jump to the real-vs-synthetic proof chooser."],
     },
   ];
 }
 
+function buildSelectedRecordSummary(selectedEntry = null) {
+  const selectedMeta = selectedEntry?.meta || {};
+  if (selectedMeta.kind !== "record" || !selectedMeta.filePath) return null;
+  return {
+    label: "Selected proof object",
+    tone: selectedMeta.tone || "neutral",
+    lines: [
+      selectedMeta.statusLine || "DEFENDED RECORD",
+      selectedEntry?.label || selectedMeta.title || "Selected defended record",
+      `Captured ${formatRecordedAt(selectedMeta.recordedAt)} · Operator ${operatorActionLabel(selectedMeta.operatorAction)}`,
+      selectedMeta.primaryReason || "No primary reason recorded.",
+    ],
+  };
+}
+
 export function buildRecordsBrowserView(browser = {}, explicitColumns = 80) {
   const { density, compact, columns } = terminalDensityFlags(explicitColumns);
+  const hasAnyRecords = Number(browser.counts?.loaded || browser.counts?.total || 0) > 0;
+  const hasVisibleRecords = Boolean((browser.entries || []).length);
+  const queueScopeLine = browser.counts?.total > browser.counts?.loaded
+    ? `Loaded ${browser.counts?.loaded || 0} most recent of ${browser.counts?.total || 0} local records`
+    : `Local records ${browser.counts?.loaded || 0}`;
   return {
     kind: "nornr.sentry.records_browser_surface.v1",
     columns,
     density,
     twoColumn: !compact && columns >= 108,
     interactiveEntries: true,
-    initialSelectionSectionLabel: (browser.entries || []).length ? "Recent defended records" : "Filters",
+    initialSelectionSectionLabel: hasVisibleRecords ? "Proof queue" : hasAnyRecords ? "Browser lens" : "Start here",
     hero: {
       status: "DEFENDED RECORDS",
-      lines: [
-        `Local records ${browser.counts?.total || 0} · Filter ${browser.activeFilter || "all"}${browser.activeActionClass ? ` · Lane ${browser.activeActionClass}` : ""} · Sort ${browser.activeSort || "latest"}`,
-        pickByDensity({
-          compact: "Browse real defended records and open one proof object.",
-          standard: "Browse real defended records and open one proof object at a time.",
-          wide: "Browse real defended records, then open one proof object at a time for replay, review, or sharing.",
-        }, density),
-      ],
+      lines: hasAnyRecords
+        ? [
+          `${queueScopeLine} · Filter ${browser.activeFilter || "all"}${browser.activeActionClass ? ` · Lane ${actionClassLabel(browser.activeActionClass)}` : ""} · Sort ${browser.activeSort || "latest"}`,
+          pickByDensity({
+            compact: "Browse real proof objects and open one record.",
+            standard: "Browse real proof objects and open one defended record at a time.",
+            wide: "Browse real proof objects, inspect the queue, and open one defended record at a time for replay, review, or sharing.",
+          }, density),
+        ]
+        : [
+          "No local defended records yet.",
+          pickByDensity({
+            compact: "Create one stop, then come back here.",
+            standard: "Create one blocked, tightened, or approved-once stop, then come back here.",
+            wide: "This console is for real local proof objects after the first stop, not before the first stop exists.",
+          }, density),
+        ],
     },
     buildSelectionActions: (selectedEntry) => buildSelectedRecordActions(browser, selectedEntry),
-    sections: [
-      {
-        label: "Filters",
-        entries: browser.filterEntries || [],
-      },
-      {
-        label: "Sort",
-        entries: browser.sortEntries || [],
-      },
-      ...(browser.laneEntries?.length ? [{
-        label: "Lanes",
-        entries: browser.laneEntries,
-      }] : []),
-      {
-        label: "Record actions",
-        entries: browser.browserActions || [],
-      },
-      {
-        label: "Recent defended records",
-        entries: browser.entries || [],
-      },
-      {
-        label: "What these are",
-        lines: [
-          `Blocked or tightened: ${browser.counts?.blocked || 0}`,
-          `Approved: ${browser.counts?.approved || 0}`,
-          `Shadow pass: ${browser.counts?.shadow || 0}`,
-          `Showing: ${(browser.entries || []).length} of ${browser.counts?.total || 0}`,
-          compact
-            ? "Enter opens the selected defended record."
-            : "These are real defended records from the local boundary, not replay attacks. Enter opens the selected defended record.",
-        ],
-      },
-    ],
-    footer: compact ? [] : [`Record root: ${formatDisplayPath(browser.rootDir, browser)}`, "Use this browser when you want the real proof object, not the synthetic attack replay."],
+    buildSelectionSummary: (selectedEntry) => buildSelectedRecordSummary(selectedEntry),
+    sections: hasAnyRecords
+      ? [
+        {
+          label: "Proof queue",
+          compactEntries: true,
+          ...(hasVisibleRecords
+            ? { entries: browser.entries || [] }
+            : {
+              lines: [
+                "No records match the current filter lens.",
+                "Change filter, sort, or focused lane to reopen the proof queue.",
+              ],
+            }),
+        },
+        {
+          label: "Browser lens",
+          compactEntries: true,
+          entries: [
+            ...(browser.filterEntries || []),
+            ...(browser.sortEntries || []),
+            ...(browser.laneEntries || []),
+          ],
+        },
+        {
+          label: "Next proof step",
+          compactEntries: true,
+          entries: browser.browserActions || [],
+        },
+        {
+          label: "Proof posture",
+          lines: [
+            `Queue ${browser.counts?.loaded || 0}${browser.counts?.total > browser.counts?.loaded ? ` of ${browser.counts?.total || 0}` : ""}`,
+            `Blocked ${browser.counts?.blocked || 0} · Approved ${browser.counts?.approved || 0} · Shadow ${browser.counts?.shadow || 0}`,
+            browser.activeActionClass
+              ? `Lane ${actionClassLabel(browser.activeActionClass)}`
+              : "Lane all",
+            compact
+              ? "Real local proof objects. Enter opens the selected record."
+              : "Real local proof objects, not synthetic replay. Enter opens the selected record.",
+          ],
+        },
+      ]
+      : [
+        {
+          label: "Start here",
+          entries: browser.browserActions || [],
+        },
+        {
+          label: "No local records yet",
+          lines: [
+            `Record root: ${formatDisplayPath(browser.rootDir, browser)}`,
+            "Trigger one real stop locally, then reopen this console.",
+            "Blocked, tighten-mandate, and approved-once outcomes all show up here as defended records.",
+          ],
+        },
+        {
+          label: "What this console is for",
+          lines: [
+            "This surface is for real local defended records only.",
+            "Replay attacks are synthetic scenarios. They are useful, but they are not proof objects.",
+            "After the first stop, this is where you open, replay, and export the real artifact.",
+          ],
+        },
+      ],
+    footer: compact ? [] : [`Record root: ${formatDisplayPath(browser.rootDir, browser)}`, "Use this console when you want the real proof object, not the synthetic attack replay."],
   };
 }
 

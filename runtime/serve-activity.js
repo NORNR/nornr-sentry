@@ -51,6 +51,19 @@ export function createServeActivityTracker(options = {}) {
   };
   const recentEvents = [];
   const lanes = new Map();
+  const listeners = new Set();
+  let revision = 0;
+
+  function notify() {
+    revision += 1;
+    for (const listener of listeners) {
+      try {
+        listener(revision);
+      } catch {
+        // Keep serve activity updates best-effort only.
+      }
+    }
+  }
 
   return {
     note(session = {}, outcome = {}, meta = {}) {
@@ -95,6 +108,7 @@ export function createServeActivityTracker(options = {}) {
       currentLane.lastOperatorAction = operatorAction;
       currentLane.lastReason = event.reason;
       lanes.set(actionClass, currentLane);
+      notify();
     },
     snapshot() {
       const events15m = recentEvents.filter((event) => withinWindow(event));
@@ -103,6 +117,7 @@ export function createServeActivityTracker(options = {}) {
       const shadow15m = events15m.filter((event) => event.bucket === "shadow").length;
       return {
         startedAt,
+        revision,
         uptimeSeconds: Math.max(0, Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000)),
         totals: {
           ...counters,
@@ -118,6 +133,13 @@ export function createServeActivityTracker(options = {}) {
         },
         client: String(options.shield || "cursor").trim() || "cursor",
       };
+    },
+    subscribe(listener) {
+      if (typeof listener !== "function") {
+        return () => {};
+      }
+      listeners.add(listener);
+      return () => listeners.delete(listener);
     },
   };
 }

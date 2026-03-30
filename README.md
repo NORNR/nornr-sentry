@@ -53,7 +53,7 @@ npm install -g nornr-sentry
 3. Run one demo stop.
 4. Observe first in shadow mode.
 5. Serve for real.
-6. Export the defended record and replay it locally.
+6. Open the proof queue, export the defended record, and replay it locally.
 
 Or clone and run locally:
 
@@ -78,6 +78,7 @@ npm publish
 - local mandate init and tighten loop
 - policy replay demo
 - shadow mode and shadow conversion
+- defended records proof queue
 - defended record export
 - local proof summary
 
