@@ -13,9 +13,16 @@ This public repo is the open wedge:
 
 It is not the hosted NORNR control plane.
 
+## Operator station
+
+![NORNR Sentry operator station](./site/assets/nornr-sentry-operator-station.png)
+
+After install, Sentry opens into a local operator station for patch / wiring, verify, replay, records, proof hub and serve flows. Use the blocked stop-screen as the first proof image, and this screen as the second image that shows the product is a real navigable tool after the first stop.
+
 ## Proof
 
 - Hero stop-screen: [nornr-sentry-blocked-stop-screen.png](./site/assets/nornr-sentry-blocked-stop-screen.png)
+- Operator station: [nornr-sentry-operator-station.png](./site/assets/nornr-sentry-operator-station.png)
 - Proof clip: [nornr-sentry-proof-clip-final.mp4](./site/assets/nornr-sentry-proof-clip-final.mp4)
 - X-optimized clip: [nornr-sentry-proof-clip-x.mp4](./site/assets/nornr-sentry-proof-clip-x.mp4)
 
