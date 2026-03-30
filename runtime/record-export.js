@@ -106,9 +106,21 @@ export function buildSentryDefendedRecordExportView(result = {}, explicitColumns
     kind: "nornr.sentry.record_export_surface.v1",
     columns,
     density: compact ? "compact" : "standard",
-    twoColumn: !compact,
+    twoColumn: columns >= 100,
     interactiveEntries: true,
+    selectionFocused: columns >= 100,
     initialSelectionSectionLabel: "Share copy",
+    buildSelectionSummary: (selectedEntry) => selectedEntry
+      ? {
+        label: "Selected share path",
+        tone: "neutral",
+        lines: [
+          selectedEntry.label || "Selected share path",
+          selectedEntry.detailLines?.[0] || "",
+          selectedEntry.commandLines?.[0] || "",
+        ].filter(Boolean),
+      }
+      : null,
     hero: {
       status: screenshotMode ? "SHARE-SAFE PROOF" : "DEFENDED RECORD",
       lines: [

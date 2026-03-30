@@ -149,6 +149,7 @@ export function buildServeActivitySections(snapshot = {}, { compact = false, shi
   const windowed = snapshot.last15Minutes || {};
   const last = snapshot.lastEvent;
   const topLane = (snapshot.topLanes || [])[0] || null;
+  const hasRequests = (totals.total || 0) > 0;
   const blockRate = (windowed.total || 0) > 0
     ? `${Math.round(((windowed.blocked || 0) / Math.max(1, windowed.total || 0)) * 100)}%`
     : "0%";
@@ -173,15 +174,25 @@ export function buildServeActivitySections(snapshot = {}, { compact = false, shi
   return [
     {
       label: "Live activity",
-      lines: [
-        `Requests seen: ${totals.total || 0}`,
-        `Last 15 min: ${windowed.total || 0} total · blocked ${windowed.blocked || 0} · cleared ${windowed.cleared || 0} · shadow ${windowed.shadow || 0}`,
-        `Blocked ratio: ${blockRate}`,
-        last
-          ? `Latest lane: ${timeStamp(last.recordedAt)} · ${last.actionClass} · ${last.status}${last.operatorAction ? ` · ${last.operatorAction}` : ""}`
-          : "Latest lane: waiting for the first request.",
-        ...(!compact && last?.reason ? [`Latest reason: ${last.reason}`] : []),
-      ],
+      lines: hasRequests
+        ? [
+          `Requests seen: ${totals.total || 0}`,
+          `Last 15 min: ${windowed.total || 0} total · blocked ${windowed.blocked || 0} · cleared ${windowed.cleared || 0} · shadow ${windowed.shadow || 0}`,
+          `Blocked ratio: ${blockRate}`,
+          last
+            ? `Latest lane: ${timeStamp(last.recordedAt)} · ${last.actionClass} · ${last.status}${last.operatorAction ? ` · ${last.operatorAction}` : ""}`
+            : "Latest lane: waiting for the first request.",
+          ...(!compact && last?.reason ? [`Latest reason: ${last.reason}`] : []),
+        ]
+        : compact
+          ? [
+            "No requests yet.",
+            "Waiting for the first lane.",
+          ]
+          : [
+            "No requests yet.",
+            "Waiting for the first risky lane under the current local boundary.",
+          ],
     },
     ...(timelineLines.length ? [{
       label: "Recent operator timeline",

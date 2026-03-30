@@ -6,7 +6,6 @@ import {
   terminalDensity,
 } from "./terminal-theme.js";
 import { inspectGuidedSetup, buildGuidedSetupArgv, buildObserveFirstArgv } from "./first-run.js";
-import { buildGoldenPathClientEntry } from "./golden-path.js";
 import { defaultProtectPresetForShield } from "../mandates/defaults.js";
 
 const MIN_WELCOME_WIDTH = 52;
@@ -36,6 +35,16 @@ function buildWelcomeEntry(label, commandLines, detail = "") {
     commandLines: normalizeLines(commandLines),
     detailLines: normalizeLines(detail),
   };
+}
+
+function buildHomeCommandLines(shield = "cursor", mode = "first-stop", layout = "single") {
+  if (mode === "patch") return buildWelcomeCommandLines("", "--patch-client", layout);
+  if (mode === "guided-setup") return buildWelcomeCommandLines(shield, "--guided-setup", layout);
+  if (mode === "observe") return buildWelcomeCommandLines(shield, "--serve --shadow-mode", layout);
+  if (mode === "serve") return buildWelcomeCommandLines(shield, "--serve", layout);
+  if (mode === "records") return buildWelcomeCommandLines(shield, "--records", layout);
+  if (mode === "replay") return buildWelcomeCommandLines(shield, "--policy-replay", layout);
+  return buildWelcomeCommandLines(shield, "--first-stop", layout);
 }
 
 function renderEntryLines(entry = {}) {
@@ -237,9 +246,14 @@ export function buildWelcomeView(options = {}, explicitColumns = currentTerminal
   }
 
   const startHere = [
+    ...(guidedSetup.show ? [buildWelcomeEntry(
+      "Secure now",
+      buildHomeCommandLines(shield, "guided-setup", commandLayout),
+      buildGuidedSetupDetailLines(guidedSetup, density),
+    )] : []),
     buildWelcomeEntry(
       "Perfect first stop",
-      buildWelcomeCommandLines(shield, `--first-stop --protect ${options.protectPreset || defaultProtectPresetForShield(shield)}`, commandLayout),
+      buildHomeCommandLines(shield, "first-stop", commandLayout),
       pickByDensity({
         compact: "Install, prove one stop, then open the proof queue.",
         standard: "Run the shortest path from install to first stop to first defended record.",
@@ -247,17 +261,8 @@ export function buildWelcomeView(options = {}, explicitColumns = currentTerminal
       }, density),
     ),
     buildWelcomeEntry(
-      "Run demo stop",
-      buildWelcomeCommandLines(shield, "--demo destructive_shell", commandLayout),
-      pickByDensity({
-        compact: "See the blocked stop screen first.",
-        standard: "Fastest proof that the local boundary really stops a dangerous lane.",
-        wide: "Fastest proof: trigger the blocked destructive lane and see the stop screen before wiring a real client.",
-      }, density),
-    ),
-    buildWelcomeEntry(
       "Choose patch / wiring",
-      buildWelcomeCommandLines("", "--patch-client", commandLayout),
+      buildHomeCommandLines("", "patch", commandLayout),
       pickByDensity({
         compact: "Choose Cursor, Claude Desktop, Windsurf, or provider wiring.",
         standard: "Choose Cursor, Claude Desktop, Windsurf, or provider wiring before you continue.",
@@ -266,7 +271,7 @@ export function buildWelcomeView(options = {}, explicitColumns = currentTerminal
     ),
     buildWelcomeEntry(
       "Observe first",
-      buildServeCommandLines(buildObserveFirstArgv({ ...options, shield, port }), commandLayout),
+      buildHomeCommandLines(shield, "observe", commandLayout),
       pickByDensity({
         compact: "Start safely in shadow mode.",
         standard: "Start in shadow mode first. No provider key or upstream relay required.",
@@ -277,17 +282,17 @@ export function buildWelcomeView(options = {}, explicitColumns = currentTerminal
 
   const nextStep = [
     buildWelcomeEntry(
-      "Serve for real",
-      buildWelcomeCommandLines(shield, `--serve --port ${port}`, commandLayout),
+      "Defended records",
+      buildHomeCommandLines(shield, "records", commandLayout),
       pickByDensity({
-        compact: "Use after patching when you are ready for real traffic.",
-        standard: "Run the local decision layer for real client actions once the client is patched.",
-        wide: "Run the local decision layer for real client actions once the client is patched and you are done observing.",
+        compact: "Browse real proof objects from the local boundary.",
+        standard: "Browse real defended records from the local boundary.",
+        wide: "Browse real defended records from the local boundary when you want the actual proof objects instead of synthetic replay scenarios.",
       }, density),
     ),
     buildWelcomeEntry(
       "Replay attacks",
-      buildWelcomeCommandLines(shield, "--policy-replay", commandLayout),
+      buildHomeCommandLines(shield, "replay", commandLayout),
       pickByDensity({
         compact: "Choose a synthetic attack scenario to replay.",
         standard: "Choose a synthetic attack scenario and replay it under the current local mandate.",
@@ -295,30 +300,17 @@ export function buildWelcomeView(options = {}, explicitColumns = currentTerminal
       }, density),
     ),
     buildWelcomeEntry(
-      "Defended records",
-      buildWelcomeCommandLines(shield, "--records", commandLayout),
+      "Serve for real",
+      buildHomeCommandLines(shield, "serve", commandLayout),
       pickByDensity({
-        compact: "Browse real proof objects from the local boundary.",
-        standard: "Browse real defended records from the local boundary.",
-        wide: "Browse real defended records from the local boundary when you want the actual proof objects instead of synthetic replay scenarios.",
+        compact: "Use after patching when you are ready for real traffic.",
+        standard: "Run the local decision layer for real client actions once the client is patched.",
+        wide: "Run the local decision layer for real client actions once the client is patched and you are done observing.",
       }, density),
     ),
   ];
 
-  const sections = [];
-  if (guidedSetup.show) {
-    sections.push({
-      label: "Guided setup",
-      entries: [
-        buildWelcomeEntry(
-          "Secure now",
-          buildWelcomeCommandLines(shield, "--guided-setup", commandLayout),
-          buildGuidedSetupDetailLines(guidedSetup, density),
-        ),
-      ],
-    });
-  }
-  sections.push(
+  const sections = [
     {
       label: "Start here",
       entries: startHere,
@@ -327,50 +319,7 @@ export function buildWelcomeView(options = {}, explicitColumns = currentTerminal
       label: "Next step",
       entries: nextStep,
     },
-  );
-
-  if (!compact) {
-    sections.push({
-      label: "Golden paths",
-      entries: [
-        buildGoldenPathClientEntry("cursor", { ...options, port }),
-        buildGoldenPathClientEntry("claude-desktop", { ...options, port }),
-      ],
-    });
-    sections.push({
-      label: "Build on top",
-      entries: [
-        buildWelcomeEntry(
-          "Perfect first stop",
-          buildWelcomeCommandLines(shield, `--first-stop --protect ${options.protectPreset || defaultProtectPresetForShield(shield)}`, commandLayout),
-          pickByDensity({
-            compact: "Install, prove one stop, then open the proof queue.",
-            standard: "Run the shortest path from patch to first stop to first defended record.",
-            wide: "Run the shortest path from patch to first stop to first defended record before you add more product layers.",
-          }, density),
-        ),
-        buildWelcomeEntry(
-          "Protect presets",
-          buildWelcomeCommandLines(shield, `--protect-presets --protect ${options.protectPreset || defaultProtectPresetForShield(shield)}`, commandLayout),
-          pickByDensity({
-            compact: "Translate raw action classes into one obvious user promise.",
-            standard: "Translate raw action classes into one obvious user promise like repo, secrets, production, spend, or outbound.",
-            wide: "Translate raw action classes into one obvious user promise like repo, secrets, production, spend, or outbound before you widen distribution.",
-          }, density),
-        ),
-        buildWelcomeEntry(
-          "Client paths",
-          buildWelcomeCommandLines(shield, "--client-paths", commandLayout),
-          "See the real install path for Cursor, Claude Desktop, Windsurf, OpenAI / Codex wiring, and Generic MCP.",
-        ),
-        buildWelcomeEntry(
-          "Scale path",
-          buildWelcomeCommandLines(shield, "--scale-path", commandLayout),
-          "Keep the personal wedge first, then decide when team and fleet layers actually help.",
-        ),
-      ],
-    });
-  }
+  ];
 
   return {
     kind: "nornr.sentry.welcome.v1",
@@ -394,16 +343,16 @@ export function buildWelcomeView(options = {}, explicitColumns = currentTerminal
               wide: "Safe local setup detected: secure now, or use the manual path below: choose patch or wiring, verify the target, run a demo stop, open the proof queue, then start in observe mode.",
             }, density)
           : pickByDensity({
-              compact: "Patch, verify, run a demo, then observe safely.",
-              standard: "Patch the client, verify it, run a blocked demo, then start in observe mode.",
-              wide: "Patch or wire the client, verify it, run a blocked demo, open the proof queue, then start in observe mode before serving real client traffic.",
+              compact: "Patch or wire the client, then prove one stop.",
+              standard: "Patch or wire the client, prove one stop, then keep the defended record.",
+              wide: "Patch or wire the client, prove one stop, keep the defended record, then decide when to observe or serve real traffic.",
             }, density),
       ],
     },
     sections,
     guidedSetup,
     footer: compact
-      ? [guidedSetup.show ? "y secure now. n manual path. f first stop. d demo. p patch/wiring. o observe. v records." : "f first stop. d demo. p patch/wiring. o observe. s serve when ready. v records."]
+      ? [guidedSetup.show ? "f first stop · p patch · o observe · v records" : "f first stop · p patch · o observe · v records"]
       : [],
   };
 }

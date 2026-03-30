@@ -329,13 +329,13 @@ function buildSelectedRecordSummary(selectedEntry = null) {
   const selectedMeta = selectedEntry?.meta || {};
   if (selectedMeta.kind !== "record" || !selectedMeta.filePath) return null;
   return {
-    label: "Selected proof object",
+    label: "Selected proof",
     tone: selectedMeta.tone || "neutral",
     lines: [
       selectedMeta.statusLine || "DEFENDED RECORD",
       selectedEntry?.label || selectedMeta.title || "Selected defended record",
-      `Captured ${formatRecordedAt(selectedMeta.recordedAt)} · Operator ${operatorActionLabel(selectedMeta.operatorAction)}`,
-      selectedMeta.primaryReason || "No primary reason recorded.",
+      `Saved · ${formatRecordedAt(selectedMeta.recordedAt)} · ${operatorActionLabel(selectedMeta.operatorAction)}`,
+      `Why: ${selectedMeta.primaryReason || "No primary reason recorded."}`,
     ],
   };
 }
@@ -351,7 +351,7 @@ export function buildRecordsBrowserView(browser = {}, explicitColumns = 80) {
     kind: "nornr.sentry.records_browser_surface.v1",
     columns,
     density,
-    twoColumn: !compact && columns >= 108,
+    twoColumn: columns >= 100,
     interactiveEntries: true,
     initialSelectionSectionLabel: hasVisibleRecords ? "Proof queue" : hasAnyRecords ? "Browser lens" : "Start here",
     hero: {
@@ -413,8 +413,8 @@ export function buildRecordsBrowserView(browser = {}, explicitColumns = 80) {
               ? `Lane ${actionClassLabel(browser.activeActionClass)}`
               : "Lane all",
             compact
-              ? "Real local proof objects. Enter opens the selected record."
-              : "Real local proof objects, not synthetic replay. Enter opens the selected record.",
+              ? "Real proof queue. Enter opens record."
+              : "Real proof queue, not synthetic replay. Enter opens record.",
           ],
         },
       ]
@@ -440,7 +440,7 @@ export function buildRecordsBrowserView(browser = {}, explicitColumns = 80) {
           ],
         },
       ],
-    footer: compact ? [] : [`Record root: ${formatDisplayPath(browser.rootDir, browser)}`, "Use this console when you want the real proof object, not the synthetic attack replay."],
+    footer: compact ? [] : [`Record root: ${formatDisplayPath(browser.rootDir, browser)}`, "Real proof queue, not synthetic replay."],
   };
 }
 

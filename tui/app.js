@@ -157,18 +157,12 @@ function buildWelcomeNavigationItems({ guidedSetup = null, guidedDismissed = fal
     if (Array.isArray(launchMap.y)) items.push({ label: "Secure now", kind: "launch", argv: launchMap.y });
     items.push({ label: "Manual path", kind: "dismiss" });
   }
-  if (Array.isArray(launchMap.d)) items.push({ label: "Run demo stop", kind: "launch", argv: launchMap.d });
+  if (Array.isArray(launchMap.f)) items.push({ label: "Perfect first stop", kind: "launch", argv: launchMap.f });
   if (Array.isArray(launchMap.p)) items.push({ label: "Choose patch / wiring", kind: "launch", argv: launchMap.p });
   if (Array.isArray(launchMap.o)) items.push({ label: "Observe first", kind: "launch", argv: launchMap.o });
-  if (Array.isArray(launchMap.s)) items.push({ label: "Serve for real", kind: "launch", argv: launchMap.s });
-  if (!ultraCompactViewport && Array.isArray(launchMap.r)) items.push({ label: "Replay attacks", kind: "launch", argv: launchMap.r });
   if (Array.isArray(launchMap.v)) items.push({ label: "Defended records", kind: "launch", argv: launchMap.v });
-  if (Array.isArray(launchMap.gCursor)) items.push({ label: "Cursor golden path", kind: "launch", argv: launchMap.gCursor });
-  if (Array.isArray(launchMap.gClaude)) items.push({ label: "Claude Desktop golden path", kind: "launch", argv: launchMap.gClaude });
-  if (Array.isArray(launchMap.f)) items.push({ label: "Perfect first stop", kind: "launch", argv: launchMap.f });
-  if (Array.isArray(launchMap.t)) items.push({ label: "Protect presets", kind: "launch", argv: launchMap.t });
-  if (Array.isArray(launchMap.c)) items.push({ label: "Client paths", kind: "launch", argv: launchMap.c });
-  if (Array.isArray(launchMap.l)) items.push({ label: "Scale path", kind: "launch", argv: launchMap.l });
+  if (!ultraCompactViewport && Array.isArray(launchMap.r)) items.push({ label: "Replay attacks", kind: "launch", argv: launchMap.r });
+  if (Array.isArray(launchMap.s)) items.push({ label: "Serve for real", kind: "launch", argv: launchMap.s });
   return items;
 }
 
@@ -486,13 +480,12 @@ function CompactWelcomeCard({ guidedSetup = null, guidedDismissed = false, ultra
     lines.push({ label: "Secure now", line: "y Secure now" });
     lines.push({ label: "Manual path", line: "n Manual path" });
   }
-  lines.push({ label: "Run demo stop", line: "d Run demo stop" });
+  lines.push({ label: "Perfect first stop", line: "f Perfect first stop" });
   lines.push({ label: "Choose patch / wiring", line: "p Patch / wiring" });
   lines.push({ label: "Observe first", line: "o Observe first" });
-  lines.push({ label: "Serve for real", line: "s Serve for real" });
-  if (!ultraCompactViewport) lines.push({ label: "Replay attacks", line: "r Replay attacks" });
   lines.push({ label: "Defended records", line: "v Defended records" });
-  if (!ultraCompactViewport) lines.push({ label: "Perfect first stop", line: "f Perfect first stop" });
+  if (!ultraCompactViewport) lines.push({ label: "Replay attacks", line: "r Replay attacks" });
+  lines.push({ label: "Serve for real", line: "s Serve for real" });
 
   const renderedLines = lines.map((entry, index) => {
     const selected = String(selectedLabel || "").trim() === String(entry.label || "").trim();
@@ -533,10 +526,10 @@ function SurfaceSectionCard({ section = {}, width = 80, compactVertical = false,
       ? String(selectedKey).trim() === entrySelectionKey
       : String(selectedLabel || "").trim() === String(entry.label || "").trim();
     const entryTone = String(entry.tone || entry.meta?.tone || "neutral").trim() || "neutral";
-    const detailLines = compactEntries && Array.isArray(entry.compactDetailLines) && entry.compactDetailLines.length
+    const detailLines = compactEntries && Array.isArray(entry.compactDetailLines)
       ? entry.compactDetailLines
       : (entry.detailLines || []);
-    const commandLines = compactEntries && Array.isArray(entry.compactCommandLines) && entry.compactCommandLines.length
+    const commandLines = compactEntries && Array.isArray(entry.compactCommandLines)
       ? entry.compactCommandLines
       : (entry.commandLines || []);
     if (index > 0) {
@@ -590,9 +583,7 @@ function CommandPaletteHint() {
     Text,
     { color: "gray", dimColor: true },
     React.createElement(Text, { color: "white", bold: true }, ":"),
-    React.createElement(Text, null, " command palette"),
-    React.createElement(Text, { color: "gray", dimColor: true }, "  ·  "),
-    React.createElement(Text, null, "/ also opens"),
+    React.createElement(Text, null, " palette"),
   );
 }
 
@@ -683,7 +674,11 @@ export function SentrySurfaceApp({ buildView, data, paletteOptions = {}, navigat
   const homeArgv = Array.isArray(navigation.homeArgv) ? navigation.homeArgv : [];
   const backArgv = Array.isArray(navigation.backArgv) ? navigation.backArgv : null;
   const sections = view.sections || [];
-  const visibleSections = sections.slice(0, theme.sectionLimit);
+  const allowWideReadOnlyLayout = Boolean(!theme.minimal && view.twoColumn && stdoutWidth >= 100);
+  const preferredSectionLimit = allowWideReadOnlyLayout
+    ? Math.max(theme.sectionLimit, Math.min(sections.length, view.selectionFocused ? 3 : 4))
+    : theme.sectionLimit;
+  const visibleSections = sections.slice(0, preferredSectionLimit);
   const hiddenSections = Math.max(0, sections.length - visibleSections.length);
   const hero = theme.reduced
     ? { ...view.hero, lines: sliceAdaptiveLines(view.hero?.lines || [], theme.heroLineLimit) }
@@ -857,7 +852,7 @@ export function SentrySurfaceApp({ buildView, data, paletteOptions = {}, navigat
       ),
     )
     : null;
-  const isRecordFocusedSurface = Boolean(view.twoColumn && !theme.reduced && selectedEntry?.meta?.kind === "record");
+  const isRecordFocusedSurface = Boolean(view.twoColumn && !theme.minimal && selectedEntry?.meta?.kind === "record");
   const recordPrimarySection = isRecordFocusedSurface ? visibleSections.find((section) => section.label === "Proof queue") || visibleSections[0] : null;
   const recordSecondarySections = isRecordFocusedSurface
     ? visibleSections.filter((section) => section !== recordPrimarySection)
@@ -869,6 +864,20 @@ export function SentrySurfaceApp({ buildView, data, paletteOptions = {}, navigat
     ? recordSecondarySections.find((section) => section.label === "Proof posture") || recordSecondarySections[0] || null
     : null;
   const recordRenderedSidebarSection = recordFocusedSidebarSection || recordDefaultSidebarSection;
+  const isSelectionFocusedSurface = Boolean(!isRecordFocusedSurface && view.selectionFocused && view.twoColumn && !theme.minimal && selectionSummary);
+  const selectionPrimarySection = isSelectionFocusedSurface
+    ? visibleSections.find((section) => section.label === (view.initialSelectionSectionLabel || "")) || visibleSections[0] || null
+    : null;
+  const selectionSecondarySections = isSelectionFocusedSurface
+    ? visibleSections.filter((section) => section !== selectionPrimarySection)
+    : [];
+  const selectionFocusedSidebarSection = isSelectionFocusedSurface
+    ? selectionSecondarySections.find((section) => visibleSections.indexOf(section) === activeSectionIndex && section !== selectionPrimarySection) || null
+    : null;
+  const selectionDefaultSidebarSection = isSelectionFocusedSurface
+    ? selectionSecondarySections[0] || null
+    : null;
+  const selectionRenderedSidebarSection = selectionFocusedSidebarSection || selectionDefaultSidebarSection;
 
   return React.createElement(ScreenFrame, {
     theme,
@@ -886,7 +895,7 @@ export function SentrySurfaceApp({ buildView, data, paletteOptions = {}, navigat
       : backArgv?.length
         ? theme.minimal ? "Esc/b back · h home · q close · : palette" : theme.reduced ? "Esc/b back · h home · Enter/q close · : palette" : "Esc/b back · h home · Enter/q close"
         : theme.minimal ? "h home · q close · : palette" : theme.reduced ? "h home · Enter/q close · : palette" : "h home · Enter/q close",
-    actionBarItems: selectionActions.slice(0, 3).map((action, index) => ({ label: `${index + 1} ${action.label}`, active: true, focused: false })),
+    actionBarItems: [],
     paletteOpen: palette.paletteOpen,
     paletteNode: React.createElement(CommandPalette, { value: palette.paletteValue, message: palette.paletteMessage, minimal: theme.minimal }),
   },
@@ -953,7 +962,7 @@ export function SentrySurfaceApp({ buildView, data, paletteOptions = {}, navigat
             : null,
         ),
       )
-      : view.twoColumn && !theme.reduced
+      : isSelectionFocusedSurface
         ? React.createElement(
           Box,
           {
@@ -961,71 +970,134 @@ export function SentrySurfaceApp({ buildView, data, paletteOptions = {}, navigat
             columnGap: 1,
             alignItems: "flex-start",
           },
-          ...splitIntoColumns(visibleSections, 2).map((columnSections, columnIndex) => React.createElement(
+          React.createElement(
             Box,
             {
-              key: `surface-column-${columnIndex}`,
+              key: "surface-column-selection-list",
               flexDirection: "column",
-              width: Math.max(32, Math.floor((stdoutWidth - 5) / 2)),
+              width: Math.max(36, Math.floor((stdoutWidth - 5) / 2)),
               flexGrow: 1,
             },
-            ...columnSections.map((section) => {
-              const originalIndex = visibleSections.indexOf(section);
-              return React.createElement(
+            selectionPrimarySection
+              ? React.createElement(
                 Box,
-                { key: section.label, marginBottom: 1 },
+                { key: selectionPrimarySection.label, marginBottom: 1 },
                 React.createElement(SurfaceSectionCard, {
-                  section,
+                  section: selectionPrimarySection,
                   width: stdoutWidth,
                   compactVertical: theme.compactVertical,
                   minimal: theme.minimal,
                   interactive,
-                  focused: interactive ? activeSectionIndex === originalIndex : false,
+                  focused: interactive ? activeSectionIndex === visibleSections.indexOf(selectionPrimarySection) : false,
                   selectedLabel: interactive ? selectedEntry?.label || "" : "",
                   selectedKey: interactive ? selectedEntry?.selectionKey || "" : "",
                 }),
-              );
-            }),
-          )),
-        )
-        : React.createElement(
-          Box,
-          {
-            flexDirection: "column",
-            columnGap: 0,
-          },
-          ...(visibleSections.map((section, index) => React.createElement(
+              )
+              : null,
+          ),
+          React.createElement(
             Box,
             {
-              key: section.label,
-              width: "100%",
+              key: "surface-column-selection-detail",
+              flexDirection: "column",
+              width: Math.max(32, Math.floor((stdoutWidth - 5) / 2)),
+              flexGrow: 1,
             },
-            React.createElement(SurfaceSectionCard, {
-              section,
-              width: stdoutWidth,
-              compactVertical: theme.compactVertical,
-              minimal: theme.minimal,
-              interactive,
-              focused: interactive ? activeSectionIndex === index : false,
-              selectedLabel: interactive ? selectedEntry?.label || "" : "",
-              selectedKey: interactive ? selectedEntry?.selectionKey || "" : "",
-            }),
-          ))),
-        ),
-    !isRecordFocusedSurface ? selectionSummaryNode : null,
-    !isRecordFocusedSurface ? selectionActionsNode : null,
+            selectionSummaryNode,
+            selectionActionsNode,
+            selectionRenderedSidebarSection
+              ? React.createElement(
+                Box,
+                { key: selectionRenderedSidebarSection.label, marginTop: 0, marginBottom: 1 },
+                React.createElement(SurfaceSectionCard, {
+                  section: selectionRenderedSidebarSection,
+                  width: stdoutWidth,
+                  compactVertical: theme.compactVertical,
+                  minimal: theme.minimal,
+                  interactive,
+                  focused: interactive ? activeSectionIndex === visibleSections.indexOf(selectionRenderedSidebarSection) : false,
+                  selectedLabel: interactive ? selectedEntry?.label || "" : "",
+                  selectedKey: interactive ? selectedEntry?.selectionKey || "" : "",
+                }),
+              )
+              : null,
+          ),
+        )
+        : allowWideReadOnlyLayout
+          ? React.createElement(
+            Box,
+            {
+              flexDirection: "row",
+              columnGap: 1,
+              alignItems: "flex-start",
+            },
+            ...splitIntoColumns(visibleSections, 2).map((columnSections, columnIndex) => React.createElement(
+              Box,
+              {
+                key: `surface-column-${columnIndex}`,
+                flexDirection: "column",
+                width: Math.max(32, Math.floor((stdoutWidth - 5) / 2)),
+                flexGrow: 1,
+              },
+              ...columnSections.map((section) => {
+                const originalIndex = visibleSections.indexOf(section);
+                return React.createElement(
+                  Box,
+                  { key: section.label, marginBottom: 1 },
+                  React.createElement(SurfaceSectionCard, {
+                    section,
+                    width: stdoutWidth,
+                    compactVertical: theme.compactVertical,
+                    minimal: theme.minimal,
+                    interactive,
+                    focused: interactive ? activeSectionIndex === originalIndex : false,
+                    selectedLabel: interactive ? selectedEntry?.label || "" : "",
+                    selectedKey: interactive ? selectedEntry?.selectionKey || "" : "",
+                  }),
+                );
+              }),
+            )),
+          )
+          : React.createElement(
+            Box,
+            {
+              flexDirection: "column",
+              columnGap: 0,
+            },
+            ...(visibleSections.map((section, index) => React.createElement(
+              Box,
+              {
+                key: section.label,
+                width: "100%",
+              },
+              React.createElement(SurfaceSectionCard, {
+                section,
+                width: stdoutWidth,
+                compactVertical: theme.compactVertical,
+                minimal: theme.minimal,
+                interactive,
+                focused: interactive ? activeSectionIndex === index : false,
+                selectedLabel: interactive ? selectedEntry?.label || "" : "",
+                selectedKey: interactive ? selectedEntry?.selectionKey || "" : "",
+              }),
+            ))),
+          ),
+    !isRecordFocusedSurface && !isSelectionFocusedSurface ? selectionSummaryNode : null,
+    !isRecordFocusedSurface && !isSelectionFocusedSurface ? selectionActionsNode : null,
     React.createElement(
       CompactStateNote,
       { theme },
       isRecordFocusedSurface
         ? "←/→ swaps the right-hand proof panel while the queue stays in view."
-        : hiddenSections > 0
-          ? `${hiddenSections} more section${hiddenSections === 1 ? "" : "s"} appear in a taller window.`
-          : selectionActions.length
-            ? `Open the selected item with Enter, or use 1-${selectionActions.length} for the quick actions above.`
-            : interactive && theme.reduced
-              ? "Choose a replay scenario here, then open it with Enter."
-              : theme.reduced ? "Compact operator view keeps the top of the lane in sight." : "",
+        : isSelectionFocusedSurface
+          ? "←/→ swaps the right-hand replay panel while the scenario list stays in view."
+          : hiddenSections > 0
+            ? `${hiddenSections} more section${hiddenSections === 1 ? "" : "s"} appear in a taller window.`
+            : selectionActions.length
+              ? `Open the selected item with Enter, or use 1-${selectionActions.length} for the quick actions above.`
+              : interactive && theme.reduced
+                ? "Choose a replay scenario here, then open it with Enter."
+                : theme.reduced ? "Compact operator view keeps the top of the lane in sight." : "",
     ),
   ));
 }
@@ -1153,7 +1225,7 @@ export function SentryWelcomeApp({ options = {}, onExit, onLaunch }) {
         minimal: theme.minimal,
       }),
       footer: view.footer || [],
-      hotkeys: theme.minimal ? "Tab focus · ↑/↓ choose · Enter select · y/n/d/p/o/s/r · q close" : "Tab focus · ↑/↓ choose · Enter select · y/n/d/p/o/s/r · q close · : palette",
+      hotkeys: theme.minimal ? "↑/↓ choose · Enter open · q close" : "↑/↓ choose · Enter open · : palette · q close",
       actionBarItems: [],
       paletteOpen: palette.paletteOpen,
       paletteNode: React.createElement(CommandPalette, { value: palette.paletteValue, message: palette.paletteMessage, minimal: theme.minimal }),
@@ -1175,12 +1247,12 @@ export function SentryWelcomeApp({ options = {}, onExit, onLaunch }) {
     }),
     footer: view.footer || [],
     hotkeys: theme.minimal
-      ? "Tab focus · ↑/↓ choose · Enter select · y/n/d/p/o/s/r/v/f · q close"
+      ? "↑/↓ choose · Enter open · q close"
       : theme.reduced
-        ? "Tab focus · ↑/↓ choose · Enter select · y/n/d/p/o/s/r/v/f · q close · : palette"
+        ? "↑/↓ choose · Enter open · : palette · q close"
         : guidedSetup?.show && !guidedDismissed
-          ? "Tab focus · ↑/↓ choose · Enter select · y secure · n path · d demo · p patch/wiring · o observe · s serve · r replay attacks · v records · f first stop · q close"
-          : "Tab focus · ↑/↓ choose · Enter select · d demo · p patch/wiring · o observe · s serve · r replay attacks · v records · f first stop · q close",
+          ? "Tab section · ↑/↓ choose · Enter open · y secure · n manual · : palette · q close"
+          : "Tab section · ↑/↓ choose · Enter open · : palette · q close",
     actionBarItems: [],
     paletteOpen: palette.paletteOpen,
     paletteNode: React.createElement(CommandPalette, { value: palette.paletteValue, message: palette.paletteMessage, minimal: theme.minimal }),
@@ -1226,7 +1298,7 @@ function RuntimeOptionRow({ option = {}, selected = false, focused = false }) {
 
   return React.createElement(
     Box,
-    { flexDirection: "column", marginBottom: 1 },
+    { flexDirection: "column", marginBottom: 0 },
     React.createElement(
       Text,
       textProps,
@@ -1264,6 +1336,7 @@ export function SentryRuntimeConfigApp({ options = {}, buildView, navigation = {
   }));
   const palette = usePaletteController({ paletteOptions: { ...options, ...runtimeState }, onLaunch, onExit });
   const liveRuntime = Boolean(options.liveRuntime) && typeof onApply === "function";
+  const observeFirst = Boolean(options.runtimeContext === "serve" && options.shadowMode);
   const stationEntries = useMemo(
     () => (view.sections || []).flatMap((section, sectionIndex) => (section.entries || [])
       .filter((entry) => Array.isArray(entry?.argv) && entry.argv.length)
@@ -1290,7 +1363,9 @@ export function SentryRuntimeConfigApp({ options = {}, buildView, navigation = {
     const foundIndex = stationSectionGroups.findIndex((section) => section.indices.includes(selectedStationEntryIndex));
     return foundIndex >= 0 ? foundIndex : 0;
   }, [selectedStationEntryIndex, stationSectionGroups]);
-  const runtimeFocusAreas = ["runtime", ...(stationEntries.length ? ["station"] : []), "actions"];
+  const runtimeFocusAreas = observeFirst
+    ? ["runtime", ...(stationEntries.length ? ["station"] : [])]
+    : ["runtime", ...(stationEntries.length ? ["station"] : []), "actions"];
   const focusedArea = runtimeFocusAreas[focusedAreaIndex] || "runtime";
   const homeArgv = Array.isArray(navigation.homeArgv) ? navigation.homeArgv : [];
   const backArgv = Array.isArray(navigation.backArgv) ? navigation.backArgv : null;
@@ -1373,6 +1448,11 @@ export function SentryRuntimeConfigApp({ options = {}, buildView, navigation = {
         return;
       }
     }
+    if (input === "a" || input === "A") {
+      if (liveRuntime) onApply?.(runtimeState);
+      else onLaunch?.(view.buildServeArgv(runtimeState));
+      return;
+    }
     if ((key.escape || input === "b" || input === "B") && backArgv && backArgv.length) {
       onLaunch?.(backArgv);
       return;
@@ -1395,6 +1475,7 @@ export function SentryRuntimeConfigApp({ options = {}, buildView, navigation = {
   const primarySurfaceSection = focusedArea === "station" && stationSectionGroups[activeStationSectionIndex]
     ? view.sections?.[stationSectionGroups[activeStationSectionIndex].sectionIndex]
     : view.sections?.[0];
+  const secondarySections = (view.sections || []).filter((section) => section !== primarySurfaceSection);
 
   return React.createElement(ScreenFrame, {
     theme,
@@ -1407,21 +1488,12 @@ export function SentryRuntimeConfigApp({ options = {}, buildView, navigation = {
     footer: view.footer || [],
     hotkeys: backArgv?.length
       ? theme.reduced
-        ? `Tab focus · Esc/b back · h home · ↑/↓ choose · Enter ${focusedArea === "runtime" ? "toggle" : focusedArea === "station" ? "open" : liveRuntime ? "apply-live" : "apply"} · q close · : palette`
-        : `Tab focus · Esc/b back · h home · ↑/↓ choose · ←/→ toggle/open · Enter ${focusedArea === "runtime" ? "toggle" : focusedArea === "station" ? "open" : liveRuntime ? "apply-live" : "apply"} · q close`
+        ? `Tab section · Esc/b back · h home · ↑/↓ choose · Enter ${focusedArea === "runtime" ? "toggle" : "open"} · a apply · q close`
+        : `Tab section · Esc/b back · h home · ↑/↓ choose · ←/→ toggle/open · Enter ${focusedArea === "runtime" ? "toggle" : "open"} · a apply · q close`
       : theme.reduced
-        ? `Tab focus · h home · ↑/↓ choose · Enter ${focusedArea === "runtime" ? "toggle" : focusedArea === "station" ? "open" : liveRuntime ? "apply-live" : "apply"} · q close · : palette`
-        : `Tab focus · h home · ↑/↓ choose · ←/→ toggle/open · Enter ${focusedArea === "runtime" ? "toggle" : focusedArea === "station" ? "open" : liveRuntime ? "apply-live" : "apply"} · q close`,
-    actionBarItems: [
-      backArgv?.length ? { label: "Back", active: true } : null,
-      { label: "Home", active: true },
-      focusedArea === "runtime"
-        ? { label: "Toggle", active: true, focused: true }
-        : focusedArea === "station"
-          ? { label: "Open lane", active: true, focused: true }
-          : { label: liveRuntime ? "Apply live" : "Apply", active: true, focused: true },
-      { label: selectedActionIndex === 1 ? "Cancel" : backArgv?.length ? "Back" : "Close", active: false, focused: focusedArea === "actions" && selectedActionIndex === 1 },
-    ],
+        ? `Tab section · h home · ↑/↓ choose · Enter ${focusedArea === "runtime" ? "toggle" : "open"} · a apply · q close`
+        : `Tab section · h home · ↑/↓ choose · ←/→ toggle/open · Enter ${focusedArea === "runtime" ? "toggle" : "open"} · a apply · q close`,
+    actionBarItems: [],
     paletteOpen: palette.paletteOpen,
     paletteNode: React.createElement(CommandPalette, { value: palette.paletteValue, message: palette.paletteMessage, minimal: theme.minimal }),
   },
@@ -1430,19 +1502,20 @@ export function SentryRuntimeConfigApp({ options = {}, buildView, navigation = {
     null,
     React.createElement(
       Box,
-      { flexDirection: theme.reduced ? "column" : view.twoColumn ? "row" : "column", columnGap: theme.reduced ? 0 : view.twoColumn ? 1 : 0 },
+      { flexDirection: theme.reduced ? "column" : view.twoColumn ? "row" : "column", columnGap: theme.reduced ? 0 : view.twoColumn ? 1 : 0, alignItems: "flex-start" },
       React.createElement(
         Box,
         { width: !theme.reduced && view.twoColumn ? Math.max(32, Math.floor((stdoutWidth - 5) / 2)) : "100%", flexGrow: !theme.reduced && view.twoColumn ? 1 : 0 },
         React.createElement(
           InfoCard,
-          { label: "Runtime", borderColor: "gray", compactVertical: theme.compactVertical, minimal: theme.minimal, focused: focusedArea === "runtime", width: "100%" },
+          { label: observeFirst ? "Observe posture" : "Runtime", borderColor: "gray", compactVertical: true, minimal: theme.minimal, focused: focusedArea === "runtime", width: "100%" },
           ...((view.runtimeOptions || []).map((option, index) => React.createElement(RuntimeOptionRow, {
             key: option.key,
             option: { ...option, enabled: runtimeState[option.key] },
             selected: index === selectedIndex,
             focused: focusedArea === "runtime",
           }))),
+          observeFirst ? React.createElement(Text, { color: "gray", dimColor: true }, "Press a to apply the selected posture. Use Tab to open the next surface.") : null,
         ),
       ),
       React.createElement(
@@ -1451,44 +1524,68 @@ export function SentryRuntimeConfigApp({ options = {}, buildView, navigation = {
         theme.minimal ? null : React.createElement(SurfaceSectionCard, {
           section: primarySurfaceSection,
           width: stdoutWidth,
-          compactVertical: theme.compactVertical,
+          compactVertical: true,
           minimal: false,
           interactive: focusedArea === "station",
           focused: focusedArea === "station",
           selectedLabel: focusedArea === "station" ? selectedStationEntry?.label || "" : "",
         }),
-        React.createElement(
+        !observeFirst ? React.createElement(
           InfoCard,
-          { label: "Command preview", borderColor: "gray", compactVertical: theme.compactVertical, minimal: theme.minimal, width: "100%" },
+          { label: "Command preview", borderColor: "gray", compactVertical: true, minimal: theme.minimal, width: "100%" },
           ...previewLines.map((line, index) => React.createElement(Text, { key: `runtime-preview-${index}` }, line)),
           React.createElement(Text, { color: "gray", dimColor: true }, view.applyLine),
-        ),
+        ) : null,
       ),
     ),
     theme.reduced
       ? null
-      : (view.sections || []).filter((section) => section !== primarySurfaceSection).map((section, index) => React.createElement(SurfaceSectionCard, {
-        key: `runtime-section-${section.label}-${index}`,
-        section,
-        width: stdoutWidth,
-        interactive: focusedArea === "station",
-        focused: focusedArea === "station" && stationSectionGroups[activeStationSectionIndex]?.sectionIndex === (view.sections || []).indexOf(section),
-        selectedLabel: focusedArea === "station" ? selectedStationEntry?.label || "" : "",
-      })),
-    React.createElement(
-      Box,
-      { marginTop: theme.compactVertical ? 0 : 1, marginBottom: theme.compactVertical ? 0 : 1, flexWrap: "wrap", flexDirection: "row" },
-      React.createElement(ActionChip, { label: liveRuntime ? "Apply live" : "Apply", active: selectedActionIndex === 0, focused: focusedArea === "actions" && selectedActionIndex === 0 }),
-      React.createElement(ActionChip, { label: backArgv?.length ? "Back" : "Cancel", active: selectedActionIndex === 1, focused: focusedArea === "actions" && selectedActionIndex === 1 }),
-    ),
+      : (view.twoColumn && secondarySections.length > 1
+        ? React.createElement(
+          Box,
+          { flexDirection: "row", columnGap: 1, alignItems: "flex-start" },
+          ...splitIntoColumns(secondarySections, 2).map((columnSections, columnIndex) => React.createElement(
+            Box,
+            {
+              key: `runtime-secondary-column-${columnIndex}`,
+              flexDirection: "column",
+              width: Math.max(32, Math.floor((stdoutWidth - 5) / 2)),
+              flexGrow: 1,
+            },
+            ...columnSections.map((section, index) => React.createElement(SurfaceSectionCard, {
+              key: `runtime-section-${section.label}-${columnIndex}-${index}`,
+              section,
+              width: stdoutWidth,
+              compactVertical: true,
+              interactive: focusedArea === "station",
+              focused: focusedArea === "station" && stationSectionGroups[activeStationSectionIndex]?.sectionIndex === (view.sections || []).indexOf(section),
+              selectedLabel: focusedArea === "station" ? selectedStationEntry?.label || "" : "",
+            })),
+          )),
+        )
+        : secondarySections.map((section, index) => React.createElement(SurfaceSectionCard, {
+          key: `runtime-section-${section.label}-${index}`,
+          section,
+          width: stdoutWidth,
+          compactVertical: true,
+          interactive: focusedArea === "station",
+          focused: focusedArea === "station" && stationSectionGroups[activeStationSectionIndex]?.sectionIndex === (view.sections || []).indexOf(section),
+          selectedLabel: focusedArea === "station" ? selectedStationEntry?.label || "" : "",
+        }))),
     React.createElement(
       CompactStateNote,
       { theme },
       theme.minimal
-        ? stationEntries.length
-          ? "This view keeps live toggles in reach; Tab into the station to open a hot lane directly."
-          : "This view keeps live toggles in reach; deeper station detail returns in a taller window."
-        : theme.reduced ? stationEntries.length ? "Compact runtime keeps live toggles first, but you can still Tab into the station and open a hot lane." : "Compact runtime keeps the live controls and command preview in view first." : "",
+        ? observeFirst
+          ? "Observe-first keeps watch-only posture and the first lane in view."
+          : stationEntries.length
+            ? "This view keeps live toggles in reach; Tab into the station to open a hot lane directly."
+            : "This view keeps live toggles in reach; deeper station detail returns in a taller window."
+        : theme.reduced
+          ? observeFirst
+            ? "Compact observe view keeps safety and first-lane status visible first."
+            : stationEntries.length ? "Compact runtime keeps live toggles first, but you can still Tab into the station and open a hot lane." : "Compact runtime keeps the live controls and command preview in view first."
+          : "",
     ),
   ));
 }

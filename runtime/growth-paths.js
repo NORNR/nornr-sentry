@@ -76,7 +76,7 @@ export function buildProtectPresetCatalogView(catalog = {}, explicitColumns = 80
     kind: "nornr.sentry.protect_presets_surface.v1",
     columns,
     density,
-    twoColumn: !compact,
+    twoColumn: columns >= 100,
     interactiveEntries: true,
     initialSelectionSectionLabel: "Protect presets",
     hero: {
@@ -131,7 +131,6 @@ export function buildFirstStopGuide(options = {}) {
   const preset = normalizeProtectPresetForOptions(options);
   const setup = inspectGuidedSetup({ ...options, shield, protectPreset: preset });
   const demo = demoForProtectPreset(preset);
-  const firstStopArgv = ["--client", shield, "--first-stop", "--protect", preset];
   const guidedArgv = buildGuidedSetupArgv({ ...options, shield, protectPreset: preset }, setup);
   const verifyArgv = ["generic-mcp", "windsurf"].includes(shield)
     ? ["--patch-guide", shield]
@@ -148,65 +147,121 @@ export function buildFirstStopGuide(options = {}) {
     demo,
     steps: [
       {
-        label: `Choose ${protectPresetLabel(preset)}`,
+        label: protectPresetLabel(preset),
+        selectionKey: `first-stop-protect-${preset}`,
         argv: ["--client", shield, "--protect-presets", "--protect", preset],
-        commandLines: [commandLine(firstStopArgv)],
+        commandLines: [commandLine(["--client", shield, "--protect-presets", "--protect", preset])],
+        compactCommandLines: [`nornr-sentry --client ${shield} --protect-presets`],
         detailLines: [protectPresetSummary(preset)],
+        compactDetailLines: [],
+        meta: {
+          summary: `Start with one obvious promise: ${protectPresetLabel(preset)}.`,
+          preview: `nornr-sentry --client ${shield} --protect-presets`,
+        },
       },
       {
-        label: setup.patch?.serverPatched ? "Run guided setup · already patched" : "Run guided setup",
+        label: setup.patch?.serverPatched ? "Patch / wire client · ready" : "Patch / wire client",
+        selectionKey: "first-stop-patch",
         argv: guidedArgv,
         commandLines: [commandLine(guidedArgv)],
-        detailLines: [setup.patch?.serverPatched ? `${clientLabelFor(shield)} already points at NORNR Sentry. Guided setup mainly confirms mandate + observe-first posture.` : "Patch or wire the client, write the local mandate, then start in safe observe mode."],
+        compactCommandLines: [`nornr-sentry --client ${shield} --guided-setup`],
+        detailLines: [setup.patch?.serverPatched ? `${clientLabelFor(shield)} is already wired into NORNR Sentry.` : `Point ${clientLabelFor(shield)} at the local boundary first.`],
+        compactDetailLines: [],
+        meta: {
+          summary: setup.patch?.serverPatched ? "The client path is already pointed at the local boundary." : "Patch desktop config or use the honest manual wiring path first.",
+          preview: `nornr-sentry --client ${shield} --guided-setup`,
+        },
       },
       {
         label: "Verify target",
+        selectionKey: "first-stop-verify",
         argv: verifyArgv,
         commandLines: [commandLine(verifyArgv)],
-        detailLines: [["generic-mcp", "windsurf"].includes(shield) ? `Review the manual ${clientLabelFor(shield)} wiring path before the first real request.` : `Confirm that ${clientLabelFor(shield)} now contains the NORNR Sentry stanza.`].filter(Boolean),
+        compactCommandLines: [["generic-mcp", "windsurf"].includes(shield) ? `nornr-sentry --patch-guide ${shield}` : `nornr-sentry --client ${shield} --verify-patch`],
+        detailLines: [["generic-mcp", "windsurf"].includes(shield) ? `Review the manual ${clientLabelFor(shield)} path before the first request.` : `Confirm that ${clientLabelFor(shield)} now contains the NORNR Sentry stanza.`],
+        compactDetailLines: [],
+        meta: {
+          summary: ["generic-mcp", "windsurf"].includes(shield) ? "This target uses a manual path, so verify the wiring instead of expecting a desktop patch." : "Confirm the desktop patch before proving the first stop.",
+          preview: ["generic-mcp", "windsurf"].includes(shield) ? `nornr-sentry --patch-guide ${shield}` : `nornr-sentry --client ${shield} --verify-patch`,
+        },
       },
       {
-        label: setup.mandate?.exists ? `Apply ${protectPresetLabel(preset)} mandate · already present` : `Apply ${protectPresetLabel(preset)} mandate`,
+        label: setup.mandate?.exists ? `Apply ${protectPresetLabel(preset)} mandate · ready` : `Apply ${protectPresetLabel(preset)} mandate`,
+        selectionKey: `first-stop-mandate-${preset}`,
         argv: mandateArgv,
         commandLines: [commandLine(mandateArgv)],
-        detailLines: [setup.mandate?.exists ? "A local mandate already exists here. Re-apply only if you want the preset to become the active opinionated default." : "Make the local boundary opinionated before the first real stop."],
+        compactCommandLines: [`nornr-sentry --client ${shield} --mandate-init --apply`],
+        detailLines: [setup.mandate?.exists ? "A local mandate already exists here." : "Write the first opinionated local mandate before the stop."],
+        compactDetailLines: [],
+        meta: {
+          summary: setup.mandate?.exists ? "You already have a local mandate. Re-apply only if you want this preset to become the active default." : "Make the local boundary opinionated before the first real stop.",
+          preview: `nornr-sentry --client ${shield} --mandate-init --apply`,
+        },
       },
       {
         label: "Run first stop",
+        selectionKey: `first-stop-demo-${demo}`,
         argv: demoArgv,
         commandLines: [commandLine(demoArgv)],
-        detailLines: ["Trigger one obvious dangerous lane and prove that the local boundary really intervenes."],
+        compactCommandLines: [`nornr-sentry --client ${shield} --demo ${demo}`],
+        detailLines: ["Trigger one obvious dangerous lane and prove that the boundary really intervenes."],
+        compactDetailLines: [],
+        meta: {
+          summary: "This is the wedge moment: prove one obvious local stop before you do anything broader.",
+          preview: `nornr-sentry --client ${shield} --demo ${demo}`,
+        },
       },
       {
         label: "Open proof queue",
+        selectionKey: "first-stop-records",
         argv: recordsArgv,
         commandLines: [commandLine(recordsArgv)],
-        detailLines: ["Open the defended records queue right after the stop and inspect the first real proof object."],
+        compactCommandLines: [`nornr-sentry --client ${shield} --records`],
+        detailLines: ["Open the defended records queue right after the stop."],
+        compactDetailLines: [],
+        meta: {
+          summary: "Inspect the first real defended record immediately after the stop lands.",
+          preview: `nornr-sentry --client ${shield} --records`,
+        },
       },
       {
         label: "Observe first",
+        selectionKey: "first-stop-observe",
         argv: observeArgv,
         commandLines: [commandLine(observeArgv)],
-        detailLines: ["Stay in shadow mode first so the lane stays visible before harder enforcement."],
+        compactCommandLines: [`nornr-sentry --client ${shield} --serve --shadow-mode`],
+        detailLines: ["Stay in watch-only shadow mode so the lane stays visible first."],
+        compactDetailLines: [],
+        meta: {
+          summary: "Keep the lane visible in observe-first mode before you harden enforcement.",
+          preview: `nornr-sentry --client ${shield} --serve --shadow-mode`,
+        },
       },
       {
         label: "Serve for real",
+        selectionKey: "first-stop-serve",
         argv: serveNowArgv,
         commandLines: [commandLine(serveNowArgv)],
+        compactCommandLines: [`nornr-sentry --client ${shield} --serve`],
         detailLines: ["Turn on the live local boundary once the first stop and proof queue look right."],
+        compactDetailLines: [],
+        meta: {
+          summary: "Go live only after the first stop and proof object feel right.",
+          preview: `nornr-sentry --client ${shield} --serve`,
+        },
       },
     ],
     readinessLines: [
-      `Client target: ${clientLabelFor(shield)}`,
+      `Client ${clientLabelFor(shield)}`,
       setup.patch?.serverPatched
-        ? "Patch status: local boundary already wired into the client path."
+        ? "Patch ready"
         : setup.patch?.canPatch
-          ? "Patch status: ready to patch from this machine."
-          : `Patch status: manual ${clientLabelFor(shield)} wiring path.`,
+          ? "Patch available now"
+          : `Manual ${clientLabelFor(shield)} path`,
       setup.mandate?.exists
-        ? "Mandate status: local mandate already exists."
-        : "Mandate status: first local mandate will be written during setup.",
-      "Observe-first safety: shadow mode is observe-only, so you can watch the lane before enforcing it.",
+        ? "Mandate ready"
+        : "Mandate pending",
+      "Observe-first stays watch-only.",
     ],
   };
 }
@@ -217,41 +272,46 @@ export function buildFirstStopGuideView(guide = {}, explicitColumns = 80) {
     kind: "nornr.sentry.first_stop_surface.v1",
     columns,
     density,
-    twoColumn: !compact,
+    twoColumn: columns >= 100,
     interactiveEntries: true,
+    selectionFocused: columns >= 100,
     initialSelectionSectionLabel: "First stop path",
+    buildSelectionSummary: (selectedEntry) => selectedEntry
+      ? {
+        label: "Selected",
+        tone: "neutral",
+        lines: [
+          selectedEntry.label || "Selected step",
+          selectedEntry.meta?.summary || selectedEntry.detailLines?.[0] || "",
+        ].filter(Boolean),
+      }
+      : null,
     hero: {
       status: "FIRST STOP",
       lines: [
-        `${clientLabelFor(guide.shield)} · ${protectPresetLabel(guide.preset)} · ${guide.steps?.length || 0}-step path`,
+        `${clientLabelFor(guide.shield)} · ${protectPresetLabel(guide.preset)} · ${guide.steps?.length || 0} steps`,
         pickByDensity({
-          compact: "Install, prove one stop, then open the first defended record.",
-          standard: "Install, prove one stop, then open the first defended record before you try to scale the product any further.",
-          wide: "Install, prove one stop, then open the first defended record before you try to scale the product any further. This is the shortest path from wedge to proof object.",
+          compact: "Patch, stop once, open the first defended record.",
+          standard: "Patch, stop once, open the first defended record.",
+          wide: "Patch, stop once, open the first defended record.",
         }, density),
       ],
     },
     sections: [
       {
         label: "First stop path",
+        compactEntries: true,
         entries: guide.steps || [],
       },
       {
-        label: "Readiness now",
-        lines: guide.readinessLines || [],
-      },
-      {
-        label: "Why this matters",
+        label: "Ready now",
         lines: [
-          `Preset focus: ${protectPresetLabel(guide.preset)}`,
-          `Demo lane: ${guide.demo}`,
-          compact
-            ? "Stop first. Proof second. Scale later."
-            : "Stop first. Proof second. Scale later. If the first stop is weak, everything layered above it becomes demo theater.",
+          ...(guide.readinessLines || []),
+          `Demo lane · ${String(guide.demo || "").replace(/_/g, " ")}`,
         ],
       },
     ],
-    footer: compact ? [] : ["The adoption wedge is not the policy menu. It is the first stop plus the first defended record."],
+    footer: compact ? [] : ["First stop first. Proof queue next."],
   };
 }
 
@@ -318,7 +378,7 @@ export function buildClientPathsView(paths = {}, explicitColumns = 80) {
     kind: "nornr.sentry.client_paths_surface.v1",
     columns,
     density,
-    twoColumn: !compact,
+    twoColumn: columns >= 100,
     interactiveEntries: true,
     initialSelectionSectionLabel: "Client paths",
     hero: {
@@ -432,7 +492,7 @@ export function buildScalePathView(scale = {}, explicitColumns = 80) {
     kind: "nornr.sentry.scale_path_surface.v1",
     columns,
     density,
-    twoColumn: !compact,
+    twoColumn: columns >= 100,
     interactiveEntries: true,
     initialSelectionSectionLabel: "Personal now",
     hero: {

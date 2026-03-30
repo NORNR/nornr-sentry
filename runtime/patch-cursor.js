@@ -117,12 +117,16 @@ function ensureObject(value, label) {
   return value;
 }
 
-function patchChoice(label, argv, detailLines = []) {
+function patchChoice(label, argv, detailLines = [], options = {}) {
   return {
     label,
     argv,
     commandLines: [`nornr-sentry ${argv.join(" ")}`.trim()],
+    compactCommandLines: options.compactCommandLines || [],
     detailLines,
+    compactDetailLines: options.compactDetailLines || detailLines,
+    selectionKey: options.selectionKey || label,
+    meta: options.meta || {},
   };
 }
 
@@ -142,37 +146,92 @@ export function buildPatchChooserView(options = {}, explicitColumns) {
     kind: "nornr.sentry.patch_chooser_surface.v1",
     columns,
     density,
-    twoColumn: false,
+    twoColumn: columns >= 100,
     interactiveEntries: true,
+    selectionFocused: columns >= 100,
+    initialSelectionSectionLabel: "Patch directly",
+    buildSelectionSummary: (selectedEntry) => selectedEntry
+      ? {
+        label: "Selected path",
+        tone: "neutral",
+        lines: [
+          selectedEntry.label || "Selected path",
+          selectedEntry.meta?.summary || selectedEntry.detailLines?.[0] || "",
+          selectedEntry.meta?.preview || selectedEntry.commandLines?.[0] || "",
+        ].filter(Boolean),
+      }
+      : null,
     hero: {
       status: "PATCH TARGET",
       lines: [
-        "Choose the client or wiring path first.",
+        "Choose the real install path first.",
         pickByDensity({
-          compact: "Cursor and Claude Desktop patch directly. Windsurf/Codex use wiring instead.",
-          standard: "Cursor and Claude Desktop patch directly. Windsurf and OpenAI/Codex-style traffic use wiring instead of a desktop config patch.",
-          wide: "Choose the exact patch target first: Cursor and Claude Desktop patch directly, while Windsurf and OpenAI/Codex-style traffic use wiring instead of a desktop config file patch.",
+          compact: "Patch desktop clients directly. Use wiring for Windsurf and Codex-style paths.",
+          standard: "Patch Cursor or Claude Desktop directly. Use wiring for Windsurf and OpenAI/Codex-style paths.",
+          wide: "Patch desktop clients directly. Use wiring for Windsurf, OpenAI/Codex-style traffic, and generic MCP hosts.",
         }, density),
       ],
     },
     sections: [
       {
-        label: "Patchable clients",
+        label: "Patch directly",
+        compactEntries: true,
         entries: [
-          patchChoice("Patch Cursor", ["--client", "cursor", "--patch-client"], ["Write the NORNR Sentry stanza into ~/.cursor/mcp.json."]),
-          patchChoice("Patch Claude Desktop", ["--client", "claude-desktop", "--patch-client"], ["Write the NORNR Sentry stanza into Claude Desktop's local config file."]),
+          patchChoice("Patch Cursor", ["--client", "cursor", "--patch-client"], ["Fastest desktop patch path."], {
+            compactCommandLines: ["nornr-sentry --client cursor --patch-client"],
+            compactDetailLines: ["Desktop patch into ~/.cursor/mcp.json."],
+            selectionKey: "patch-cursor",
+            meta: {
+              summary: "Desktop patch path for the fastest local wedge.",
+              preview: "nornr-sentry --client cursor --patch-client",
+            },
+          }),
+          patchChoice("Patch Claude Desktop", ["--client", "claude-desktop", "--patch-client"], ["Desktop patch for Claude Desktop."], {
+            compactCommandLines: ["nornr-sentry --client claude-desktop --patch-client"],
+            compactDetailLines: ["Desktop patch into Claude Desktop config."],
+            selectionKey: "patch-claude-desktop",
+            meta: {
+              summary: "Desktop patch path for Claude Desktop on this machine.",
+              preview: "nornr-sentry --client claude-desktop --patch-client",
+            },
+          }),
         ],
       },
       {
-        label: "Use wiring instead",
+        label: "Use wiring",
+        compactEntries: true,
         entries: [
-          patchChoice("Windsurf MCP path", ["--patch-guide", "windsurf", "--port", String(port)], ["Use the Windsurf MCP/manual wiring path instead of pretending there is a built-in desktop patch."]),
-          patchChoice("OpenAI / Codex-style wiring", ["--patch-guide", "openai-codex", "--port", String(port)], ["Use base URL / provider wiring. No desktop file patch is needed."]),
-          patchChoice("Generic MCP manual path", ["--patch-guide", "generic-mcp", "--port", String(port)], ["Use the generic MCP config snippet instead of a built-in desktop patch."]),
+          patchChoice("Windsurf path", ["--patch-guide", "windsurf", "--port", String(port)], ["Manual MCP path for Windsurf."], {
+            compactCommandLines: [`nornr-sentry --patch-guide windsurf --port ${port}`],
+            compactDetailLines: ["Manual MCP path, not a desktop patch."],
+            selectionKey: "patch-windsurf",
+            meta: {
+              summary: "Use the honest Windsurf MCP/manual path instead of pretending a desktop patch exists.",
+              preview: `nornr-sentry --patch-guide windsurf --port ${port}`,
+            },
+          }),
+          patchChoice("OpenAI / Codex path", ["--patch-guide", "openai-codex", "--port", String(port)], ["Provider wiring path."], {
+            compactCommandLines: [`nornr-sentry --patch-guide openai-codex --port ${port}`],
+            compactDetailLines: ["Provider/base-URL wiring, not a desktop patch."],
+            selectionKey: "patch-openai-codex",
+            meta: {
+              summary: "Use provider wiring instead of a desktop config file patch.",
+              preview: `nornr-sentry --patch-guide openai-codex --port ${port}`,
+            },
+          }),
+          patchChoice("Generic MCP path", ["--patch-guide", "generic-mcp", "--port", String(port)], ["Manual MCP config path."], {
+            compactCommandLines: [`nornr-sentry --patch-guide generic-mcp --port ${port}`],
+            compactDetailLines: ["Manual MCP config path."],
+            selectionKey: "patch-generic-mcp",
+            meta: {
+              summary: "Use the generic MCP snippet in the host instead of a built-in desktop patch.",
+              preview: `nornr-sentry --patch-guide generic-mcp --port ${port}`,
+            },
+          }),
         ],
       },
     ],
-    footer: compact ? [] : ["Choose a patch target here instead of silently defaulting to Cursor."],
+    footer: compact ? [] : ["Choose a path here instead of silently defaulting to Cursor."],
   };
 }
 
@@ -200,33 +259,88 @@ export function buildVerifyChooserView(options = {}, explicitColumns) {
     kind: "nornr.sentry.verify_chooser_surface.v1",
     columns,
     density,
-    twoColumn: false,
+    twoColumn: columns >= 100,
     interactiveEntries: true,
+    selectionFocused: columns >= 100,
+    initialSelectionSectionLabel: "Verify desktop patch",
+    buildSelectionSummary: (selectedEntry) => selectedEntry
+      ? {
+        label: "Selected verify path",
+        tone: "neutral",
+        lines: [
+          selectedEntry.label || "Selected verify path",
+          selectedEntry.meta?.summary || selectedEntry.detailLines?.[0] || "",
+          selectedEntry.meta?.preview || selectedEntry.commandLines?.[0] || "",
+        ].filter(Boolean),
+      }
+      : null,
     hero: {
       status: "VERIFY TARGET",
       lines: [
-        "Choose what you want to verify first.",
+        "Choose the real verify path first.",
         pickByDensity({
-          compact: "Only Cursor and Claude Desktop have a local patch to verify.",
-          standard: "Only Cursor and Claude Desktop have a local desktop patch to verify. Windsurf, Codex-style, and generic MCP flows use wiring instead.",
-          wide: "Choose what you want to verify first: only Cursor and Claude Desktop have a local desktop patch to verify, while Windsurf, Codex-style, and generic MCP flows use wiring instead.",
+          compact: "Only Cursor and Claude Desktop have a desktop patch to verify.",
+          standard: "Only Cursor and Claude Desktop have a desktop patch to verify. Windsurf and Codex-style paths use wiring instead.",
+          wide: "Only Cursor and Claude Desktop have a desktop patch to verify. Windsurf, OpenAI/Codex-style, and generic MCP paths use wiring instead.",
         }, density),
       ],
     },
     sections: [
       {
         label: "Verify desktop patch",
+        compactEntries: true,
         entries: [
-          patchChoice("Verify Cursor patch", ["--client", "cursor", "--verify-patch"], ["Inspect ~/.cursor/mcp.json for the NORNR Sentry stanza."]),
-          patchChoice("Verify Claude Desktop patch", ["--client", "claude-desktop", "--verify-patch"], ["Inspect Claude Desktop's local config file for the NORNR Sentry stanza."]),
+          patchChoice("Verify Cursor", ["--client", "cursor", "--verify-patch"], ["Inspect the Cursor patch."], {
+            compactCommandLines: ["nornr-sentry --client cursor --verify-patch"],
+            compactDetailLines: ["Check ~/.cursor/mcp.json for the stanza."],
+            selectionKey: "verify-cursor",
+            meta: {
+              summary: "Inspect the local Cursor config for the NORNR Sentry stanza.",
+              preview: "nornr-sentry --client cursor --verify-patch",
+            },
+          }),
+          patchChoice("Verify Claude Desktop", ["--client", "claude-desktop", "--verify-patch"], ["Inspect the Claude Desktop patch."], {
+            compactCommandLines: ["nornr-sentry --client claude-desktop --verify-patch"],
+            compactDetailLines: ["Check Claude Desktop config for the stanza."],
+            selectionKey: "verify-claude-desktop",
+            meta: {
+              summary: "Inspect the Claude Desktop config for the NORNR Sentry stanza.",
+              preview: "nornr-sentry --client claude-desktop --verify-patch",
+            },
+          }),
         ],
       },
       {
-        label: "No desktop patch to verify",
+        label: "Use wiring",
+        compactEntries: true,
         entries: [
-          patchChoice("Windsurf MCP path", ["--patch-guide", "windsurf", "--port", String(port)], ["This path uses MCP/manual wiring, not a built-in desktop file patch."]),
-          patchChoice("OpenAI / Codex-style wiring", ["--patch-guide", "openai-codex", "--port", String(port)], ["This path uses provider wiring, not a desktop file patch."]),
-          patchChoice("Generic MCP manual path", ["--patch-guide", "generic-mcp", "--port", String(port)], ["This path uses manual MCP config, not a built-in desktop patch."]),
+          patchChoice("Windsurf path", ["--patch-guide", "windsurf", "--port", String(port)], ["Manual MCP path."], {
+            compactCommandLines: [`nornr-sentry --patch-guide windsurf --port ${port}`],
+            compactDetailLines: ["No desktop patch exists for this path."],
+            selectionKey: "verify-windsurf",
+            meta: {
+              summary: "Review the Windsurf MCP/manual path instead of looking for a desktop patch.",
+              preview: `nornr-sentry --patch-guide windsurf --port ${port}`,
+            },
+          }),
+          patchChoice("OpenAI / Codex path", ["--patch-guide", "openai-codex", "--port", String(port)], ["Provider wiring path."], {
+            compactCommandLines: [`nornr-sentry --patch-guide openai-codex --port ${port}`],
+            compactDetailLines: ["No desktop patch exists for this path."],
+            selectionKey: "verify-openai-codex",
+            meta: {
+              summary: "Review provider wiring instead of expecting a desktop file patch.",
+              preview: `nornr-sentry --patch-guide openai-codex --port ${port}`,
+            },
+          }),
+          patchChoice("Generic MCP path", ["--patch-guide", "generic-mcp", "--port", String(port)], ["Manual MCP config path."], {
+            compactCommandLines: [`nornr-sentry --patch-guide generic-mcp --port ${port}`],
+            compactDetailLines: ["No desktop patch exists for this path."],
+            selectionKey: "verify-generic-mcp",
+            meta: {
+              summary: "Review the generic MCP snippet in the host instead of a built-in desktop patch.",
+              preview: `nornr-sentry --patch-guide generic-mcp --port ${port}`,
+            },
+          }),
         ],
       },
     ],

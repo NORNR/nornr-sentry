@@ -135,8 +135,9 @@ export function buildGoldenPathWizardView(wizard = {}, explicitColumns = 80) {
     kind: "nornr.sentry.golden_path_surface.v1",
     columns,
     density: compact ? "compact" : "standard",
-    twoColumn: !compact,
+    twoColumn: columns >= 100,
     interactiveEntries: true,
+    selectionFocused: columns >= 100,
     hero: {
       status: "GOLDEN PATH",
       lines: [

@@ -65,9 +65,11 @@ export function buildRuntimeConfigView(options = {}, explicitColumns) {
   const shield = String(options.shield || "cursor").trim() || "cursor";
   const runtimeContext = normalizeRuntimeContext(options.runtimeContext);
   const liveRuntime = Boolean(options.liveRuntime);
+  const shadowMode = Boolean(options.shadowMode);
   const baseUrl = `http://127.0.0.1:${port}/v1`;
   const healthUrl = `http://127.0.0.1:${port}/health`;
   const liveRuntimeLines = formatLiveRuntimeEventLines(options.liveRuntimeEvents, compact);
+  const hasRequests = Number(options.serveActivity?.totals?.total || 0) > 0;
 
   const serveActivitySections = runtimeContext === "serve"
     ? buildServeActivitySections(options.serveActivity, { compact, shield })
@@ -82,21 +84,33 @@ export function buildRuntimeConfigView(options = {}, explicitColumns) {
     minWidth: 56,
     minHeight: 16,
     hero: {
-      status: runtimeContext === "serve" && liveRuntime ? "LIVE RUNTIME" : "RUNTIME",
+      status: runtimeContext === "serve"
+        ? shadowMode
+          ? "OBSERVE FIRST"
+          : liveRuntime
+            ? "LIVE RUNTIME"
+            : "RUNTIME"
+        : "RUNTIME",
       lines: [
         `Client ${shield} | Port ${port}`,
         runtimeContext === "serve"
-          ? liveRuntime
+          ? shadowMode
             ? pickByDensity({
-              compact: "Adjust live runtime posture while serve stays up.",
-              standard: "Adjust live runtime posture while the local boundary stays up.",
-              wide: "Adjust live runtime posture while the live local boundary stays up.",
+              compact: "Watch-only shadow mode. Nothing is blocked yet.",
+              standard: "Watch-only shadow mode. Nothing is blocked yet while the first lanes arrive.",
+              wide: "Watch-only shadow mode is live. Nothing is blocked yet, so you can inspect the first lanes before enforcing the boundary.",
             }, density)
-            : pickByDensity({
-              compact: "Adjust runtime posture before restarting serve.",
-              standard: "Adjust runtime posture, then restart the local boundary.",
-              wide: "Adjust runtime posture before restarting the live local boundary.",
-            }, density)
+            : liveRuntime
+              ? pickByDensity({
+                compact: "Adjust live runtime posture while serve stays up.",
+                standard: "Adjust live runtime posture while the local boundary stays up.",
+                wide: "Adjust live runtime posture while the live local boundary stays up.",
+              }, density)
+              : pickByDensity({
+                compact: "Adjust runtime posture before restarting serve.",
+                standard: "Adjust runtime posture, then restart the local boundary.",
+                wide: "Adjust runtime posture before restarting the live local boundary.",
+              }, density)
           : pickByDensity({
             compact: "Adjust runtime posture before starting serve.",
             standard: "Adjust runtime posture, then start the local boundary.",
@@ -130,53 +144,91 @@ export function buildRuntimeConfigView(options = {}, explicitColumns) {
         : "Apply restarts the local server with this runtime posture."
       : "Apply starts the local server with this runtime posture.",
     sections: [
+      ...(runtimeContext === "serve" && shadowMode ? [{
+        label: "Observe-first safety",
+        lines: compact
+          ? [
+            "Watch-only posture.",
+            hasRequests ? "Traffic is arriving now." : "Waiting for the first lane.",
+          ]
+          : [
+            "Watch-only posture before enforcement.",
+            !options.upstreamUrl ? "No provider key or upstream relay is required yet." : "Upstream relay can stay off while you validate the first local lanes.",
+            hasRequests ? "Traffic is already arriving." : "The first risky lane appears here when traffic arrives.",
+          ],
+      }] : []),
       {
-        label: runtimeContext === "serve" ? "Operator station" : "Connection",
+        label: runtimeContext === "serve" ? "Station" : "Connection",
         lines: [
           `OpenAI base URL: ${baseUrl}`,
           `Health: ${healthUrl}`,
           `Upstream relay: ${enabledLabel(Boolean(options.upstreamUrl))}`,
-          options.upstreamUrl ? `Upstream URL: ${options.upstreamUrl}` : "Upstream URL: not configured",
           ...(runtimeContext === "serve" ? [`Record root: ${formatDisplayPath(resolveRecordRootDir(options), options)}`] : []),
-          ...(runtimeContext === "serve" && !options.upstreamUrl && options.shadowMode ? ["Provider key: not required in this shadow-first posture"] : []),
+          ...(runtimeContext === "serve" && !options.upstreamUrl && shadowMode ? ["Provider key: not required in this shadow-first posture"] : []),
         ],
       },
-      {
-        label: "Controls",
-        lines: compact
+      ...serveActivitySections,
+      ...(runtimeContext === "serve" ? [{
+        label: "Next action",
+        compactEntries: true,
+        entries: shadowMode
           ? [
-            "Use arrows to select a runtime toggle.",
-            "Space or left/right toggles the selected setting.",
-            liveRuntime && runtimeContext === "serve"
-              ? "Enter applies live. Esc/back returns. q closes."
-              : "Enter or a applies. q closes.",
+            {
+              label: "Run demo stop",
+              argv: ["--client", shield, "--demo", "destructive_shell"],
+              commandLines: [`nornr-sentry --client ${shield} --demo destructive_shell`],
+              compactCommandLines: ["nornr-sentry --demo destructive_shell"],
+              detailLines: ["Create one obvious first stop."],
+              compactDetailLines: [],
+            },
+            {
+              label: "Open proof queue",
+              argv: ["--client", shield, "--records"],
+              commandLines: [`nornr-sentry --client ${shield} --records`],
+              compactCommandLines: ["nornr-sentry --records"],
+              detailLines: ["Open the proof queue after the first real lane appears."],
+              compactDetailLines: [],
+            },
+            {
+              label: "Serve for real",
+              argv: ["--client", shield, "--serve", "--port", String(port)],
+              commandLines: [`nornr-sentry --client ${shield} --serve --port ${port}`],
+              compactCommandLines: ["nornr-sentry --serve"],
+              detailLines: ["Leave observe-first once the lane and proof look right."],
+              compactDetailLines: [],
+            },
           ]
           : [
-            "Use up/down to select a runtime toggle.",
-            "Left/right or Space toggles the selected setting.",
-            runtimeContext === "serve"
-              ? liveRuntime
-                ? "Enter applies the selected posture live without restarting the server."
-                : "Enter or a restarts serve with the selected posture. q closes."
-              : "Enter or a starts serve with the selected posture. q closes.",
-            runtimeContext === "serve"
-              ? "This screen is the live operator station for the current local boundary."
-              : ": command palette is available here too.",
-            liveRuntime ? "Esc or b returns to the previous serve surface. h returns home." : null,
-          ].filter(Boolean),
-      },
-      ...serveActivitySections,
+            {
+              label: liveRuntime ? "Apply live posture" : "Apply posture",
+              argv: [],
+              commandLines: [liveRuntime ? "Press a to apply live." : "Press a to apply."],
+              compactCommandLines: [liveRuntime ? "Press a to apply live." : "Press a to apply."],
+              detailLines: ["Commit the selected runtime toggle."],
+              compactDetailLines: [],
+            },
+            {
+              label: "Open proof queue",
+              argv: ["--client", shield, "--records"],
+              commandLines: [`nornr-sentry --client ${shield} --records`],
+              compactCommandLines: ["nornr-sentry --records"],
+              detailLines: ["Browse the real local proof objects created by the current boundary."],
+              compactDetailLines: [],
+            },
+          ],
+      }] : []),
       ...(liveRuntimeLines.length ? [{
         label: "Live changes",
         lines: liveRuntimeLines,
       }] : []),
     ],
     footer: [
-      `Record root: ${formatDisplayPath(resolveRecordRootDir(options), options)}`,
       runtimeContext === "serve"
-        ? liveRuntime
-          ? "Runtime changes here affect the current live serve session only."
-          : "Current live serve state is shown above; apply makes the next live state real."
+        ? shadowMode
+          ? "Observe-first stays watch-only until you deliberately enforce it."
+          : liveRuntime
+            ? "Runtime changes here affect only the current live serve session."
+            : "Current live serve state is shown above; apply makes the next live state real."
         : "This panel previews the serve posture before the server becomes live.",
     ],
     buildServeArgv: (overrides = {}) => buildRuntimeServeArgv(options, overrides),
@@ -186,21 +238,30 @@ export function buildRuntimeConfigView(options = {}, explicitColumns) {
 
 export function renderRuntimeConfig(options = {}) {
   const view = buildRuntimeConfigView(options);
+  const observeFirst = Boolean(options.runtimeContext === "serve" && options.shadowMode);
   return renderSurface({
     hero: renderHero(view.hero),
     sections: [
       {
-        label: "Runtime",
+        label: observeFirst ? "Observe posture" : "Runtime",
         lines: view.runtimeOptions.map((entry) => `${entry.label}: ${enabledLabel(entry.enabled)}`),
       },
-      ...view.sections,
-      {
+      ...(view.sections || []).map((section) => ({
+        label: section.label,
+        lines: section.lines || (section.entries || []).flatMap((entry, index) => ([
+          ...(index ? [""] : []),
+          entry.label || "",
+          ...((entry.commandLines || []).map((line) => `  ${line}`)),
+          ...((entry.detailLines || []).map((line) => `  ${line}`)),
+        ].filter(Boolean))),
+      })),
+      ...(!observeFirst ? [{
         label: "Command preview",
         lines: [
           ...view.buildServeCommandLines(),
           view.applyLine,
         ],
-      },
+      }] : []),
     ],
     footer: view.footer,
   });

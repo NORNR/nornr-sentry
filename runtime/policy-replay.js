@@ -70,6 +70,26 @@ function renderVerdict(status) {
   return status === "blocked" ? "blocked" : "approved";
 }
 
+function verdictLabel(status = "") {
+  return String(status || "unknown").trim().toUpperCase();
+}
+
+function verdictTone(status = "") {
+  return status === "blocked" ? "critical" : "positive";
+}
+
+function actionClassLabel(actionClass = "") {
+  const normalized = String(actionClass || "unknown").trim() || "unknown";
+  const aliases = {
+    destructive_shell: "Destructive Shell",
+    credential_exfiltration: "Secret Export",
+    production_mutation: "Production Mutation",
+    outbound_message: "Outbound Message",
+    paid_action: "Paid Action",
+  };
+  return aliases[normalized] || normalized.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
 function selectReplayRows(rows = [], options = {}) {
   const cinematic = Boolean(options.policyReplayDemo || options.attackMe || options.recordingMode);
   if (!cinematic) return rows;
@@ -78,16 +98,25 @@ function selectReplayRows(rows = [], options = {}) {
 }
 
 function replayEntry(row = {}, shield = "cursor") {
+  const actionClass = String(row.intent?.actionClass || "unknown").trim() || "unknown";
   return {
     label: row.operatorLabel,
-    commandLines: [
-      `Replay id: ${row.demo}`,
-      `Action class: ${row.intent?.actionClass || "unknown"}`,
-    ],
-    detailLines: [
-      `Verdict: ${row.verdict}`,
-      String(row.proofLabel || "").trim(),
-    ].filter(Boolean),
+    selectionKey: row.demo,
+    commandLines: [`${verdictLabel(row.verdict)} · ${actionClassLabel(actionClass)}`],
+    compactCommandLines: [`${verdictLabel(row.verdict)} · ${actionClassLabel(actionClass)}`],
+    detailLines: [String(row.proofLabel || "").trim(), `Synthetic lane ${row.demo}`].filter(Boolean),
+    compactDetailLines: [String(row.proofLabel || "").trim()].filter(Boolean),
+    tone: verdictTone(row.verdict),
+    meta: {
+      kind: "replay",
+      demo: row.demo,
+      verdict: row.verdict,
+      actionClass,
+      actionClassLabel: actionClassLabel(actionClass),
+      attackPrompt: row.attackPrompt,
+      proofLabel: row.proofLabel,
+      primaryReason: row.decision?.primaryReason || "",
+    },
     argv: ["--client", shield, "--policy-replay-demo", "--demo", row.demo],
   };
 }
@@ -174,34 +203,57 @@ export function buildPolicyReplayView(replay, explicitColumns) {
     kind: "nornr.sentry.policy_replay_surface.v1",
     columns,
     density,
-    twoColumn: !compact && columns >= 108,
+    twoColumn: columns >= 100,
     interactiveEntries: true,
+    selectionFocused: columns >= 100,
+    initialSelectionSectionLabel: "Attack scenarios",
+    buildSelectionSummary: (selectedEntry) => selectedEntry
+      ? {
+        label: "Selected replay",
+        tone: selectedEntry.tone || selectedEntry.meta?.tone || "neutral",
+        lines: [
+          `${verdictLabel(selectedEntry.meta?.verdict || "blocked")} · ${selectedEntry.meta?.actionClassLabel || "Replay lane"}`,
+          selectedEntry.label || "Selected replay",
+          selectedEntry.meta?.attackPrompt || "",
+          selectedEntry.meta?.proofLabel || selectedEntry.meta?.primaryReason || "",
+        ].filter(Boolean),
+      }
+      : null,
     hero: {
       status: "REPLAY ATTACKS",
       lines: [
         `Client ${replay.shield} | Mandate ${replay.mandateId}`,
         pickByDensity({
-          compact: "Choose an attack scenario to replay.",
-          standard: "Choose an attack scenario to replay under the current local mandate.",
-          wide: "Choose an attack scenario to replay under the current local mandate and open the proof surface for that lane.",
+          compact: "Choose one synthetic attack scenario.",
+          standard: "Choose one synthetic attack scenario, then open the proof surface for that lane.",
+          wide: "Choose one synthetic attack scenario, inspect what it proves, then open the proof surface for that lane.",
         }, density),
       ],
     },
     sections: [
       {
-        label: "Choose attack scenario",
+        label: "Attack scenarios",
+        compactEntries: true,
         entries,
       },
       {
-        label: "Replay scope",
+        label: "Replay posture",
         lines: [
-          `Blocked now: ${replay.summary?.blocked || 0}`,
-          `Approved now: ${replay.summary?.approved || 0}`,
-          compact ? "Enter opens the selected synthetic attack replay." : "Use Enter to open the selected synthetic attack replay in the proof surface.",
+          `Synthetic lanes ${replay.rows.length}`,
+          `Blocked now ${replay.summary?.blocked || 0} · Approved now ${replay.summary?.approved || 0}`,
+          compact ? "Enter opens the selected replay." : "Synthetic replay only. Use defended records for real local proof objects.",
+        ],
+      },
+      {
+        label: "Real proof next",
+        lines: [
+          "Use replay to stress the mandate before real traffic arrives.",
+          `Then open: nornr-sentry --client ${replay.shield} --records`,
+          "Real defended records are the durable proof objects.",
         ],
       },
     ],
-    footer: compact ? [] : ["Replay opens one synthetic attack lane at a time. Use the defended records browser when you want real local proof objects."],
+    footer: compact ? [] : ["Replay is synthetic attack pressure, not the real defended-record queue."],
   };
 }
 

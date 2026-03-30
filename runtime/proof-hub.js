@@ -130,9 +130,21 @@ export function buildProofHubView(hub = {}, explicitColumns = 80) {
     kind: "nornr.sentry.proof_hub_surface.v1",
     columns,
     density,
-    twoColumn: !compact,
+    twoColumn: columns >= 100,
     interactiveEntries: true,
+    selectionFocused: columns >= 100,
     initialSelectionSectionLabel: hub.recommendation ? "Guided recommendation" : "Proof paths",
+    buildSelectionSummary: (selectedEntry) => selectedEntry
+      ? {
+        label: "Selected proof path",
+        tone: "neutral",
+        lines: [
+          selectedEntry.label || "Selected proof path",
+          selectedEntry.detailLines?.[0] || "",
+          selectedEntry.commandLines?.[0] || "",
+        ].filter(Boolean),
+      }
+      : null,
     hero: {
       status: "PROOF HUB",
       lines: [
