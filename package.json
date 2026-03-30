@@ -1,0 +1,69 @@
+{
+  "name": "nornr-sentry",
+  "version": "0.2.2",
+  "private": false,
+  "type": "module",
+  "description": "NORNR Sentry local airbag for dangerous agent actions",
+  "license": "MIT",
+  "homepage": "https://nornr.com/nornr-sentry.html",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/NORNR/nornr-sentry.git"
+  },
+  "bugs": {
+    "url": "https://github.com/NORNR/nornr-sentry/issues"
+  },
+  "keywords": [
+    "ai-safety",
+    "ai-agents",
+    "mcp",
+    "cursor",
+    "claude-desktop",
+    "local-proxy",
+    "policy-gate",
+    "tui"
+  ],
+  "files": [
+    "README.md",
+    "PUBLIC_SURFACE.md",
+    "LICENSE",
+    "bin",
+    "runtime",
+    "adapters",
+    "artifacts",
+    "decisions",
+    "intent",
+    "mandates",
+    "demo",
+    "tui"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/",
+    "tag": "latest"
+  },
+  "bin": {
+    "nornr-sentry": "bin/nornr-sentry.js"
+  },
+  "scripts": {
+    "check": "node --check bin/nornr-sentry.js && node --check runtime/public-index.js && node --check runtime/public-args.js && node --check runtime/public-server.js && node --check runtime/session.js && node --check runtime/provider-proxy.js && node --check runtime/resolution.js && node --check runtime/recording-flow.js && node --check runtime/patch-cursor.js && node --check runtime/summary.js && node --check runtime/policy-replay.js && node --check runtime/proof-hub.js && node --check runtime/decision-trace.js && node --check runtime/record-export.js && node --check runtime/record-replay.js && node --check runtime/records-browser.js && node --check runtime/first-run.js && node --check runtime/golden-path.js && node --check runtime/lane-memory.js && node --check runtime/mandate-learner.js && node --check runtime/mandate-state.js && node --check runtime/runtime-config.js && node --check runtime/live-runtime.js && node --check runtime/reason-normalization.js && node --check runtime/serve-activity.js && node --check runtime/serve-status.js && node --check runtime/storage-paths.js && node --check runtime/terminal-theme.js && node --check runtime/welcome.js && node --check adapters/clients.js && node --check intent/classify.js && node --check mandates/defaults.js && node --check decisions/evaluate.js && node --check artifacts/write-record.js && node --check tui/app.js",
+    "demo:cursor": "node bin/nornr-sentry.js --client cursor --demo destructive_shell",
+    "demo:claude": "node bin/nornr-sentry.js --client claude-desktop --demo paid_action",
+    "demo:screenshot": "node bin/nornr-sentry.js --client cursor --demo destructive_shell --screenshot-mode",
+    "print:openai": "node bin/nornr-sentry.js --client cursor --print-provider openai",
+    "print:anthropic": "node bin/nornr-sentry.js --client cursor --print-provider anthropic",
+    "print:recording:openai": "node bin/nornr-sentry.js --client cursor --print-demo-flow openai",
+    "print:recording:anthropic": "node bin/nornr-sentry.js --client cursor --print-demo-flow anthropic",
+    "print:cursor": "node bin/nornr-sentry.js --client cursor --print-config",
+    "print:claude": "node bin/nornr-sentry.js --client claude-desktop --print-config",
+    "serve:cursor": "node bin/nornr-sentry.js --client cursor --serve",
+    "serve:claude": "node bin/nornr-sentry.js --client claude-desktop --serve"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "ink": "^5.1.0",
+    "react": "^18.3.1"
+  }
+}

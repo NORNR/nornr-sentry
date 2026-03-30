@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>NORNR Sentry</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="page">
+      <section class="hero">
+        <div class="eyebrow">NORNR SENTRY</div>
+        <h1>Stop one dangerous agent action before it becomes real.</h1>
+        <p class="lede">
+          NORNR Sentry is the local airbag for Cursor, Claude Desktop and provider-style agent loops.
+          Point one lane at Sentry, trigger one dangerous action, and get a hard stop-screen before the action clears.
+        </p>
+        <div class="actions">
+          <code>npx nornr-sentry</code>
+          <code>npx nornr-sentry --patch-client</code>
+          <code>npm install -g nornr-sentry</code>
+          <code>npx nornr-sentry --client cursor --policy-replay</code>
+        </div>
+      </section>
+
+      <section class="media-showcase">
+        <article class="media-card">
+          <div class="label">Proof clip</div>
+          <video
+            class="proof-video"
+            src="./assets/nornr-sentry-proof-clip-x.mp4"
+            poster="./assets/nornr-sentry-blocked-stop-screen.png"
+            autoplay
+            muted
+            loop
+            playsinline
+            controls
+          ></video>
+        </article>
+        <article class="media-card still-card">
+          <div class="label">Hero still</div>
+          <img
+            class="proof-still"
+            src="./assets/nornr-sentry-blocked-stop-screen.png"
+            alt="NORNR Sentry blocked destructive shell stop-screen"
+          />
+        </article>
+      </section>
+
+      <section class="panel stop">
+        <div class="stop-card">
+          <div class="panel-head">
+            <span>NORNR SENTRY</span>
+            <span>BLOCKED / DESTRUCTIVE_SHELL</span>
+          </div>
+          <div class="stop-meta">POLICY DECISION</div>
+          <div class="stop-title">blocked</div>
+          <div class="stop-subtitle">Consequential action judged under the active mandate.</div>
+          <div class="stop-note">Client Cursor | Action class destructive_shell</div>
+        </div>
+        <div class="grid">
+          <div class="card">
+            <div class="label">Intent</div>
+            <strong>Delete project files outside scope.</strong>
+            <span><span class="soft-label">Tool:</span> exec_shell</span>
+            <span><span class="soft-label">Target:</span> project workspace</span>
+            <span class="soft-label">Lineage</span>
+            <span>Lead Agent &gt; Shell Worker</span>
+          </div>
+          <div class="card">
+            <div class="label">Mandate</div>
+            <span><span class="soft-label">Owner:</span> owner_local_operator</span>
+            <span><span class="soft-label">Write scope:</span> /workspace/project</span>
+            <span><span class="soft-label">Project scope:</span> /workspace/project</span>
+            <span><span class="soft-label">Spend threshold:</span> $25</span>
+          </div>
+        </div>
+        <div class="card decision full-span">
+          <div class="label">Decision</div>
+          <strong>Blocked under the current mandate.</strong>
+          <span>Action class "destructive_shell" is blocked in the current mandate.</span>
+          <span>Tool "exec_shell" is blocked in the current mandate.</span>
+        </div>
+        <div class="chips">
+          <span class="chip active">Block</span>
+          <span class="chip">Tighten mandate</span>
+          <span class="chip">Approve once</span>
+        </div>
+        <div class="audit-line">Digest: sha256:7f8e...12a1 | Defended record: nornr-rec-7f8e12 / 2026-03-28</div>
+        <div class="audit-note">Share-ready proof is captured once the operator resolves the lane.</div>
+      </section>
+
+      <section class="three-up proof-flow">
+        <article class="card copy">
+          <div class="label">Proof flow</div>
+          <strong>Choose patch or wiring → choose verify target → demo stop → observe first → serve for real → export defended record.</strong>
+          <p>That is the whole public wedge. One real path chooser, one dangerous action, one stop-screen, one defended record you can replay and share.</p>
+        </article>
+        <article class="card copy">
+          <div class="label">Start with chooser</div>
+          <strong><code>nornr-sentry --patch-client</code></strong>
+          <p>Cursor and Claude Desktop patch directly. OpenAI / Codex-style traffic and generic MCP use a wiring path instead.</p>
+        </article>
+        <article class="card copy">
+          <div class="label">Direct desktop path</div>
+          <strong><code>nornr-sentry --client claude-desktop --patch-client</code></strong>
+          <p>You can still jump straight to Cursor or Claude Desktop when you already know the target. Verify next, then run one blocked demo before live serve.</p>
+        </article>
+      </section>
+
+      <section class="three-up">
+        <article class="card copy">
+          <div class="label">Why it hits</div>
+          <strong>One dangerous action. One hard stop. One defended record.</strong>
+          <p>This is not a universal firewall pitch. It is one obvious moment of relief developers can feel in seconds.</p>
+        </article>
+        <article class="card copy">
+          <div class="label">Provider mode</div>
+          <strong>OpenAI and Anthropic style base URL interception.</strong>
+          <p>Route <code>/v1/responses</code>, <code>/v1/chat/completions</code> or <code>/v1/messages</code> through Sentry first, then relay safe calls upstream.</p>
+        </article>
+        <article class="card copy">
+          <div class="label">Tighten path</div>
+          <strong>Turn one bad stop into a tighter mandate.</strong>
+          <p>When the operator chooses <code>Tighten mandate</code>, Sentry proposes what to block next instead of leaving the stop-screen as dead drama.</p>
+        </article>
+        <article class="card copy">
+          <div class="label">Real vs synthetic</div>
+          <strong><code>--policy-replay</code> is synthetic. <code>--records</code> is real. <code>--proof-hub</code> chooses between them.</strong>
+          <p>Use replay attacks for staged proof. Use defended records when you want the actual proof objects from the local boundary.</p>
+        </article>
+      </section>
+    </main>
+  </body>
+</html>
