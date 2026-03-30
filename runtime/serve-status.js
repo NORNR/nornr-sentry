@@ -58,6 +58,16 @@ export function buildServeStatusView(options = {}, explicitColumns) {
           `Ambient trust: ${enabledLabel(Boolean(options.ambientTrust))}`,
         ],
       },
+      ...(options.shadowMode ? [{
+        label: "Observe-first safety",
+        lines: compact
+          ? ["Watch-only posture. Nothing is blocked yet."]
+          : [
+            "Watch-only posture: shadow mode keeps the lane visible without enforcing the stop yet.",
+            "No provider key or upstream relay is required in this posture when --no-upstream is active.",
+            "Use the runtime panel when you are ready to turn observation into real enforcement.",
+          ],
+      }] : []),
       ...serveActivitySections,
       {
         label: "Golden path",

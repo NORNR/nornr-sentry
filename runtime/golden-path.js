@@ -1,4 +1,6 @@
 import { renderHero, renderSurface } from "./terminal-theme.js";
+import { defaultProtectPresetForShield, demoForProtectPreset, protectPresetLabel } from "../mandates/defaults.js";
+import { buildGuidedSetupArgv, buildObserveFirstArgv } from "./first-run.js";
 
 function normalizeShield(value = "") {
   return String(value || "cursor").trim() || "cursor";
@@ -10,16 +12,15 @@ function clientLabelFor(shield = "cursor") {
   return "Cursor";
 }
 
-function demoForShield(shield = "cursor") {
-  if (shield === "claude-desktop") return "credential_exfiltration";
-  if (shield === "generic-mcp") return "production_mutation";
-  return "destructive_shell";
+function presetForOptions(options = {}) {
+  return String(options.protectPreset || defaultProtectPresetForShield(options.shield)).trim() || defaultProtectPresetForShield(options.shield);
 }
 
-function introForShield(shield = "cursor") {
-  if (shield === "claude-desktop") return "Patch Claude Desktop first, trigger one obvious stop, then observe before serving real traffic.";
-  if (shield === "generic-mcp") return "Patch one MCP lane, prove the stop, then observe before serving real traffic.";
-  return "Patch Cursor first, trigger one obvious stop, then observe before serving real traffic.";
+function introForShield(shield = "cursor", options = {}) {
+  const presetLabel = protectPresetLabel(presetForOptions({ ...options, shield }));
+  if (shield === "claude-desktop") return `Patch Claude Desktop first, prove one ${presetLabel.toLowerCase()} stop, then observe before serving real traffic.`;
+  if (shield === "generic-mcp") return `Wire one MCP lane, prove one ${presetLabel.toLowerCase()} stop, then observe before serving real traffic.`;
+  return `Patch Cursor first, prove one ${presetLabel.toLowerCase()} stop, then observe before serving real traffic.`;
 }
 
 function commandLine(argv = []) {
@@ -38,11 +39,7 @@ function serveArgv(options = {}, overrides = {}) {
 }
 
 function observeFirstArgv(options = {}) {
-  return serveArgv(options, {
-    ...options,
-    shadowMode: true,
-    noUpstream: true,
-  });
+  return buildObserveFirstArgv(options);
 }
 
 function detailsForStep(step = {}, compact = false) {
@@ -55,28 +52,42 @@ function detailsForStep(step = {}, compact = false) {
 export function buildGoldenPathStepEntries(options = {}) {
   const shield = normalizeShield(options.shield);
   const clientLabel = clientLabelFor(shield);
-  const demo = demoForShield(shield);
+  const preset = presetForOptions({ ...options, shield });
+  const demo = demoForProtectPreset(preset);
   const port = Number(options.port || 4317) || 4317;
-  const observeArgv = observeFirstArgv({ ...options, shield, port });
-  const serveNowArgv = serveArgv({ ...options, shield, port });
+  const observeArgv = observeFirstArgv({ ...options, shield, port, protectPreset: preset });
+  const serveNowArgv = serveArgv({ ...options, shield, port, protectPreset: preset });
+  const guidedSetupArgv = buildGuidedSetupArgv({ ...options, shield, port, protectPreset: preset });
   return [
     {
-      label: `Patch ${clientLabel}`,
-      argv: ["--client", shield, "--patch-client"],
-      commandLines: [commandLine(["--client", shield, "--patch-client"])],
-      detailLines: [`Patch ${clientLabel} into the local boundary first.`],
+      label: `Choose ${protectPresetLabel(preset)}`,
+      argv: ["--client", shield, "--protect-presets", "--protect", preset],
+      commandLines: [commandLine(["--client", shield, "--protect-presets", "--protect", preset])],
+      detailLines: ["Choose the first thing you want the local airbag to protect."],
     },
     {
-      label: `Verify ${clientLabel} patch`,
-      argv: ["--client", shield, "--verify-patch"],
-      commandLines: [commandLine(["--client", shield, "--verify-patch"])],
-      detailLines: [`Confirm that ${clientLabel} now contains the NORNR Sentry stanza.`],
+      label: `Setup ${clientLabel}`,
+      argv: guidedSetupArgv,
+      commandLines: [commandLine(guidedSetupArgv)],
+      detailLines: [`Patch or wire ${clientLabel}, write the local mandate, and start safely in observe mode.`],
+    },
+    {
+      label: `Verify ${clientLabel}`,
+      argv: shield === "generic-mcp" ? ["--patch-guide", "generic-mcp"] : ["--client", shield, "--verify-patch"],
+      commandLines: [commandLine(shield === "generic-mcp" ? ["--patch-guide", "generic-mcp"] : ["--client", shield, "--verify-patch"])],
+      detailLines: [shield === "generic-mcp" ? "Review the manual MCP wiring path before the first real request." : `Confirm that ${clientLabel} now contains the NORNR Sentry stanza.`],
     },
     {
       label: "Run demo stop",
-      argv: ["--client", shield, "--demo", demo],
-      commandLines: [commandLine(["--client", shield, "--demo", demo])],
+      argv: ["--client", shield, "--demo", demo, "--protect", preset],
+      commandLines: [commandLine(["--client", shield, "--demo", demo, "--protect", preset])],
       detailLines: ["Trigger one obvious dangerous lane and see the stop-screen immediately."],
+    },
+    {
+      label: "Open proof queue",
+      argv: ["--client", shield, "--records", "--records-filter", "blocked"],
+      commandLines: [commandLine(["--client", shield, "--records", "--records-filter", "blocked"])],
+      detailLines: ["Open the defended record queue and inspect the first real proof object."],
     },
     {
       label: "Observe first",
@@ -88,7 +99,7 @@ export function buildGoldenPathStepEntries(options = {}) {
       label: "Serve for real",
       argv: serveNowArgv,
       commandLines: [commandLine(serveNowArgv)],
-      detailLines: ["Turn on the live local boundary once patching and observe mode look right."],
+      detailLines: ["Turn on the live local boundary once patching, proof queue, and observe mode look right."],
     },
   ];
 }
@@ -98,7 +109,7 @@ export function buildGoldenPathClientEntry(shield = "cursor", options = {}) {
   const steps = buildGoldenPathStepEntries({ ...options, shield: normalizedShield });
   return {
     label: `${clientLabelFor(normalizedShield)} golden path`,
-    argv: steps[0]?.argv || ["--client", normalizedShield, "--patch-client"],
+    argv: steps[0]?.argv || ["--client", normalizedShield, "--first-stop"],
     commandLines: steps.flatMap((step) => step.commandLines || []),
     detailLines: [introForShield(normalizedShield)],
   };
@@ -112,7 +123,7 @@ export function buildGoldenPathWizard(options = {}) {
     kind: "nornr.sentry.golden_path.v1",
     shield,
     clientLabel,
-    summary: introForShield(shield),
+    summary: introForShield(shield, options),
     steps,
   };
 }
@@ -129,8 +140,8 @@ export function buildGoldenPathWizardView(wizard = {}, explicitColumns = 80) {
     hero: {
       status: "GOLDEN PATH",
       lines: [
-        `${wizard.clientLabel || "Client"} · 5-step install path`,
-        wizard.summary || "Patch the client, prove one stop, observe first, then serve for real.",
+        `${wizard.clientLabel || "Client"} · ${(wizard.steps || []).length || 0}-step install path`,
+        wizard.summary || "Choose one protection preset, prove one stop, open the proof queue, observe first, then serve for real.",
       ],
     },
     sections: [
@@ -147,8 +158,8 @@ export function buildGoldenPathWizardView(wizard = {}, explicitColumns = 80) {
         label: "What this wizard does",
         lines: [
           compact
-            ? "Moves one client lane from patch to live serve in five deliberate steps."
-            : "Moves one client lane from patch to live serve in five deliberate steps so the first proof moment happens before broader rollout.",
+            ? `Moves one client lane from preset to live serve in ${(wizard.steps || []).length || 0} deliberate steps.`
+            : `Moves one client lane from preset to live serve in ${(wizard.steps || []).length || 0} deliberate steps so the first proof moment happens before broader rollout.`,
           "Use Enter on any step to launch it directly.",
         ],
       },

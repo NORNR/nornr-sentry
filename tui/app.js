@@ -165,6 +165,10 @@ function buildWelcomeNavigationItems({ guidedSetup = null, guidedDismissed = fal
   if (Array.isArray(launchMap.v)) items.push({ label: "Defended records", kind: "launch", argv: launchMap.v });
   if (Array.isArray(launchMap.gCursor)) items.push({ label: "Cursor golden path", kind: "launch", argv: launchMap.gCursor });
   if (Array.isArray(launchMap.gClaude)) items.push({ label: "Claude Desktop golden path", kind: "launch", argv: launchMap.gClaude });
+  if (Array.isArray(launchMap.f)) items.push({ label: "Perfect first stop", kind: "launch", argv: launchMap.f });
+  if (Array.isArray(launchMap.t)) items.push({ label: "Protect presets", kind: "launch", argv: launchMap.t });
+  if (Array.isArray(launchMap.c)) items.push({ label: "Client paths", kind: "launch", argv: launchMap.c });
+  if (Array.isArray(launchMap.l)) items.push({ label: "Scale path", kind: "launch", argv: launchMap.l });
   return items;
 }
 
@@ -488,6 +492,7 @@ function CompactWelcomeCard({ guidedSetup = null, guidedDismissed = false, ultra
   lines.push({ label: "Serve for real", line: "s Serve for real" });
   if (!ultraCompactViewport) lines.push({ label: "Replay attacks", line: "r Replay attacks" });
   lines.push({ label: "Defended records", line: "v Defended records" });
+  if (!ultraCompactViewport) lines.push({ label: "Perfect first stop", line: "f Perfect first stop" });
 
   const renderedLines = lines.map((entry, index) => {
     const selected = String(selectedLabel || "").trim() === String(entry.label || "").trim();
@@ -1043,6 +1048,10 @@ export function SentryWelcomeApp({ options = {}, onExit, onLaunch }) {
     s: ["--client", shield, "--serve", "--port", String(port)],
     r: ["--client", shield, "--policy-replay"],
     v: ["--client", shield, "--records"],
+    f: ["--client", shield, "--first-stop"],
+    t: ["--client", shield, "--protect-presets"],
+    c: ["--client", shield, "--client-paths"],
+    l: ["--client", shield, "--scale-path"],
     gCursor: ["--client", "cursor", "--golden-path", "--port", String(port)],
     gClaude: ["--client", "claude-desktop", "--golden-path", "--port", String(port)],
   }), [guidedSetup?.argv, guidedSetup?.show, port, shield]);
@@ -1166,12 +1175,12 @@ export function SentryWelcomeApp({ options = {}, onExit, onLaunch }) {
     }),
     footer: view.footer || [],
     hotkeys: theme.minimal
-      ? "Tab focus · ↑/↓ choose · Enter select · y/n/d/p/o/s/r/v · q close"
+      ? "Tab focus · ↑/↓ choose · Enter select · y/n/d/p/o/s/r/v/f · q close"
       : theme.reduced
-        ? "Tab focus · ↑/↓ choose · Enter select · y/n/d/p/o/s/r/v · q close · : palette"
+        ? "Tab focus · ↑/↓ choose · Enter select · y/n/d/p/o/s/r/v/f · q close · : palette"
         : guidedSetup?.show && !guidedDismissed
-          ? "Tab focus · ↑/↓ choose · Enter select · y secure · n path · d demo · p patch/wiring · o observe · s serve · r replay attacks · v records · q close"
-          : "Tab focus · ↑/↓ choose · Enter select · d demo · p patch/wiring · o observe · s serve · r replay attacks · v records · q close",
+          ? "Tab focus · ↑/↓ choose · Enter select · y secure · n path · d demo · p patch/wiring · o observe · s serve · r replay attacks · v records · f first stop · q close"
+          : "Tab focus · ↑/↓ choose · Enter select · d demo · p patch/wiring · o observe · s serve · r replay attacks · v records · f first stop · q close",
     actionBarItems: [],
     paletteOpen: palette.paletteOpen,
     paletteNode: React.createElement(CommandPalette, { value: palette.paletteValue, message: palette.paletteMessage, minimal: theme.minimal }),
@@ -1724,6 +1733,8 @@ function LaneMemoryCard({ session, screenshotMode = false, compactVertical = fal
 
 function RecordArtifactCard({ session, screenshotMode = false, compactVertical = false, minimal = false, resolved = false }) {
   const auditSignal = formatAuditSignal(session);
+  const savedAction = session.intent?.title || session.intent?.rawIntent || session.intent?.actionClass || "dangerous action";
+  const savedReason = session.decision?.primaryReason || session.decision?.reasons?.[0] || "Dangerous action stopped before becoming real.";
   return React.createElement(
     InfoCard,
     { label: "Defended record", borderColor: "white", screenshotMode, compactVertical, minimal, width: "100%" },
@@ -1735,6 +1746,8 @@ function RecordArtifactCard({ session, screenshotMode = false, compactVertical =
         ? "Portable export and share pack are ready for review, replay and audit."
         : "The operator decision will finalize the verdict and refresh the proof exports.",
     ),
+    !minimal ? React.createElement(Text, { color: "white" }, `Saved: ${savedAction}`) : null,
+    !minimal ? React.createElement(Text, { color: "gray", dimColor: true }, `Why it mattered: ${savedReason}`) : null,
     auditSignal ? React.createElement(Text, { color: screenshotMode ? "white" : "gray", dimColor: !screenshotMode }, auditSignal) : null,
     screenshotMode ? React.createElement(Text, null, resolved ? "Share-ready proof is available for the resolved lane." : "Audit residue is already attached to this lane before the operator resolves it.") : null,
     !screenshotMode ? React.createElement(Text, null, session.record.filePath) : null,
@@ -1747,6 +1760,7 @@ function ResolutionSummaryCard({ session, operatorAction, screenshotMode = false
   const tone = resolveActionTone(operatorAction);
   const borderColor = tone === "critical" ? "red" : tone === "caution" ? "yellow" : tone === "positive" ? "green" : "gray";
   const headlineColor = tone === "critical" ? "red" : tone === "caution" ? "yellow" : tone === "positive" ? "green" : "white";
+  const savedAction = session.intent?.title || session.intent?.rawIntent || session.intent?.actionClass || "dangerous action";
   return React.createElement(
     InfoCard,
     { label: "Resolution", borderColor, screenshotMode, compactVertical, minimal, width: "100%" },
@@ -1755,6 +1769,7 @@ function ResolutionSummaryCard({ session, operatorAction, screenshotMode = false
       ? React.createElement(Text, { color: "gray", dimColor: true }, session.statusLine)
       : React.createElement(React.Fragment, null,
         React.createElement(Text, null, actionSupportCopy(operatorAction)),
+        React.createElement(Text, { color: "white" }, `What was saved: ${savedAction}`),
         React.createElement(Text, { color: "gray", dimColor: true }, session.statusLine),
         operatorAction === "Tighten mandate"
           ? React.createElement(Text, { color: "yellow", bold: true }, "The stop now carries a concrete boundary update instead of ending as terminal drama.")

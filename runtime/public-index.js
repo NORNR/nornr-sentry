@@ -23,6 +23,7 @@ import { buildSentrySession } from "./session.js";
 import { createPublicSentryServer } from "./public-server.js";
 import { buildSentrySummary, buildSentrySummaryView, renderSentrySummary } from "./summary.js";
 import { buildSentryDefendedRecordExportView, exportSentryDefendedRecord, renderSentryDefendedRecordExport } from "./record-export.js";
+import { buildShareCopyResult, buildShareCopyResultView, renderShareCopyResult } from "./share-proof.js";
 import { buildRecordReplay, renderRecordReplay } from "./record-replay.js";
 import { buildRecordsBrowser, buildRecordsBrowserView, renderRecordsBrowser } from "./records-browser.js";
 import { buildProofHub, buildProofHubView, renderProofHub } from "./proof-hub.js";
@@ -33,6 +34,7 @@ import { renderSentryWelcome } from "./welcome.js";
 import { applyGuidedSetup } from "./first-run.js";
 import { createServeActivityTracker } from "./serve-activity.js";
 import { buildGoldenPathWizard, buildGoldenPathWizardView, renderGoldenPathWizard } from "./golden-path.js";
+import { buildClientPaths, buildClientPathsView, buildFirstStopGuide, buildFirstStopGuideView, buildProtectPresetCatalog, buildProtectPresetCatalogView, buildScalePath, buildScalePathView, renderClientPaths, renderFirstStopGuide, renderProtectPresetCatalog, renderScalePath } from "./growth-paths.js";
 
 function supportsInteractiveReview() {
   return Boolean(process.stdin.isTTY && process.stdout.isTTY && typeof process.stdin.setRawMode === "function");
@@ -327,10 +329,10 @@ export async function runPublicSentryCli(argv = process.argv.slice(2), navigatio
       }
       return { ...surface };
     }
-    if (parsed.shield === "generic-mcp") {
+    if (["generic-mcp", "windsurf"].includes(parsed.shield)) {
       const surface = await showReadOnlySurface({
         parsed,
-        data: { target: "generic-mcp", options: parsed },
+        data: { target: parsed.shield, options: parsed },
         buildView: (data, columns) => buildPatchGuideView(data.target, data.options, columns),
         renderText: (data) => renderPatchGuide(data.target, data.options),
         navigation,
@@ -387,10 +389,10 @@ export async function runPublicSentryCli(argv = process.argv.slice(2), navigatio
       }
       return { ...surface };
     }
-    if (parsed.shield === "generic-mcp") {
+    if (["generic-mcp", "windsurf"].includes(parsed.shield)) {
       const surface = await showReadOnlySurface({
         parsed,
-        data: { target: "generic-mcp", options: parsed },
+        data: { target: parsed.shield, options: parsed },
         buildView: (data, columns) => buildPatchGuideView(data.target, data.options, columns),
         renderText: (data) => renderPatchGuide(data.target, data.options),
         navigation,
@@ -414,6 +416,70 @@ export async function runPublicSentryCli(argv = process.argv.slice(2), navigatio
       return runPublicSentryCli(surface.launchArgv, createNavigationState(parsed.__argv, navigation));
     }
     return { ...surface, patchInspect: result };
+  }
+
+  if (parsed.firstStop) {
+    const guide = buildFirstStopGuide(parsed);
+    const surface = await showReadOnlySurface({
+      parsed,
+      data: guide,
+      buildView: buildFirstStopGuideView,
+      renderText: renderFirstStopGuide,
+      navigation,
+    });
+    if (surface.launchArgv?.length || Array.isArray(surface.launchArgv)) {
+      clearInteractiveSurface();
+      return runPublicSentryCli(surface.launchArgv, createNavigationState(parsed.__argv, navigation));
+    }
+    return { ...surface, firstStop: guide };
+  }
+
+  if (parsed.protectPresets) {
+    const catalog = buildProtectPresetCatalog(parsed);
+    const surface = await showReadOnlySurface({
+      parsed,
+      data: catalog,
+      buildView: buildProtectPresetCatalogView,
+      renderText: renderProtectPresetCatalog,
+      navigation,
+    });
+    if (surface.launchArgv?.length || Array.isArray(surface.launchArgv)) {
+      clearInteractiveSurface();
+      return runPublicSentryCli(surface.launchArgv, createNavigationState(parsed.__argv, navigation));
+    }
+    return { ...surface, protectPresets: catalog };
+  }
+
+  if (parsed.clientPaths) {
+    const paths = buildClientPaths(parsed);
+    const surface = await showReadOnlySurface({
+      parsed,
+      data: paths,
+      buildView: buildClientPathsView,
+      renderText: renderClientPaths,
+      navigation,
+    });
+    if (surface.launchArgv?.length || Array.isArray(surface.launchArgv)) {
+      clearInteractiveSurface();
+      return runPublicSentryCli(surface.launchArgv, createNavigationState(parsed.__argv, navigation));
+    }
+    return { ...surface, clientPaths: paths };
+  }
+
+  if (parsed.scalePath) {
+    const scale = buildScalePath({ ...parsed, publicSurface: true });
+    const surface = await showReadOnlySurface({
+      parsed,
+      data: scale,
+      buildView: buildScalePathView,
+      renderText: renderScalePath,
+      navigation,
+    });
+    if (surface.launchArgv?.length || Array.isArray(surface.launchArgv)) {
+      clearInteractiveSurface();
+      return runPublicSentryCli(surface.launchArgv, createNavigationState(parsed.__argv, navigation));
+    }
+    return { ...surface, scalePath: scale };
   }
 
   if (parsed.goldenPath) {
@@ -512,6 +578,21 @@ export async function runPublicSentryCli(argv = process.argv.slice(2), navigatio
 
   if (parsed.exportRecord) {
     const result = await exportSentryDefendedRecord(parsed);
+    if (parsed.copyShare) {
+      const copyResult = buildShareCopyResult(result, parsed.copyShare);
+      const surface = await showReadOnlySurface({
+        parsed,
+        data: copyResult,
+        buildView: buildShareCopyResultView,
+        renderText: renderShareCopyResult,
+        navigation,
+      });
+      if (surface.launchArgv?.length || Array.isArray(surface.launchArgv)) {
+        clearInteractiveSurface();
+        return runPublicSentryCli(surface.launchArgv, createNavigationState(parsed.__argv, navigation));
+      }
+      return { ...surface, exportResult: result, copyShare: copyResult };
+    }
     const surface = await showReadOnlySurface({
       parsed,
       data: result,

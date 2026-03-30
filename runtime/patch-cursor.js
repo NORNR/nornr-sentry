@@ -35,6 +35,20 @@ function resolvePatchTarget(shield = "cursor", options = {}) {
       clientLabel: "Claude Desktop",
     };
   }
+  if (shield === "generic-mcp") {
+    return {
+      filePath: "",
+      configLabel: "Generic MCP config",
+      clientLabel: "Generic MCP",
+    };
+  }
+  if (shield === "windsurf") {
+    return {
+      filePath: "",
+      configLabel: "Windsurf MCP config",
+      clientLabel: "Windsurf",
+    };
+  }
   return {
     filePath: cursorConfigPathFor(options),
     configLabel: "Cursor MCP config",
@@ -135,9 +149,9 @@ export function buildPatchChooserView(options = {}, explicitColumns) {
       lines: [
         "Choose the client or wiring path first.",
         pickByDensity({
-          compact: "Cursor and Claude Desktop patch directly. Codex uses provider wiring instead.",
-          standard: "Cursor and Claude Desktop patch directly. OpenAI/Codex-style traffic uses provider wiring instead of a desktop config patch.",
-          wide: "Choose the exact patch target first: Cursor and Claude Desktop patch directly, while OpenAI/Codex-style traffic uses provider wiring instead of a desktop config file patch.",
+          compact: "Cursor and Claude Desktop patch directly. Windsurf/Codex use wiring instead.",
+          standard: "Cursor and Claude Desktop patch directly. Windsurf and OpenAI/Codex-style traffic use wiring instead of a desktop config patch.",
+          wide: "Choose the exact patch target first: Cursor and Claude Desktop patch directly, while Windsurf and OpenAI/Codex-style traffic use wiring instead of a desktop config file patch.",
         }, density),
       ],
     },
@@ -152,6 +166,7 @@ export function buildPatchChooserView(options = {}, explicitColumns) {
       {
         label: "Use wiring instead",
         entries: [
+          patchChoice("Windsurf MCP path", ["--patch-guide", "windsurf", "--port", String(port)], ["Use the Windsurf MCP/manual wiring path instead of pretending there is a built-in desktop patch."]),
           patchChoice("OpenAI / Codex-style wiring", ["--patch-guide", "openai-codex", "--port", String(port)], ["Use base URL / provider wiring. No desktop file patch is needed."]),
           patchChoice("Generic MCP manual path", ["--patch-guide", "generic-mcp", "--port", String(port)], ["Use the generic MCP config snippet instead of a built-in desktop patch."]),
         ],
@@ -193,8 +208,8 @@ export function buildVerifyChooserView(options = {}, explicitColumns) {
         "Choose what you want to verify first.",
         pickByDensity({
           compact: "Only Cursor and Claude Desktop have a local patch to verify.",
-          standard: "Only Cursor and Claude Desktop have a local desktop patch to verify. Codex-style and generic MCP flows use wiring instead.",
-          wide: "Choose what you want to verify first: only Cursor and Claude Desktop have a local desktop patch to verify, while Codex-style and generic MCP flows use wiring instead.",
+          standard: "Only Cursor and Claude Desktop have a local desktop patch to verify. Windsurf, Codex-style, and generic MCP flows use wiring instead.",
+          wide: "Choose what you want to verify first: only Cursor and Claude Desktop have a local desktop patch to verify, while Windsurf, Codex-style, and generic MCP flows use wiring instead.",
         }, density),
       ],
     },
@@ -209,6 +224,7 @@ export function buildVerifyChooserView(options = {}, explicitColumns) {
       {
         label: "No desktop patch to verify",
         entries: [
+          patchChoice("Windsurf MCP path", ["--patch-guide", "windsurf", "--port", String(port)], ["This path uses MCP/manual wiring, not a built-in desktop file patch."]),
           patchChoice("OpenAI / Codex-style wiring", ["--patch-guide", "openai-codex", "--port", String(port)], ["This path uses provider wiring, not a desktop file patch."]),
           patchChoice("Generic MCP manual path", ["--patch-guide", "generic-mcp", "--port", String(port)], ["This path uses manual MCP config, not a built-in desktop patch."]),
         ],
@@ -241,6 +257,7 @@ export function buildPatchGuideView(target = "openai-codex", options = {}, expli
   const port = Number(options.port || 4317) || 4317;
   const openaiAdapter = buildClientAdapter("cursor", { ...options, port });
   const genericAdapter = buildClientAdapter("generic-mcp", { ...options, port });
+  const windsurfAdapter = buildClientAdapter("windsurf", { ...options, port });
   if (normalizedTarget === "generic-mcp") {
     return {
       kind: "nornr.sentry.patch_guide_surface.v1",
@@ -273,6 +290,41 @@ export function buildPatchGuideView(target = "openai-codex", options = {}, expli
         },
       ],
       footer: compact ? [] : ["Generic MCP is a manual wiring path, not a built-in desktop patch target."],
+    };
+  }
+  if (normalizedTarget === "windsurf") {
+    return {
+      kind: "nornr.sentry.patch_guide_surface.v1",
+      columns,
+      density,
+      twoColumn: false,
+      interactiveEntries: true,
+      hero: {
+        status: "WINDSURF PATH",
+        lines: [
+          "Windsurf uses a manual MCP/wiring path today.",
+          pickByDensity({
+            compact: "Use the MCP snippet below in Windsurf.",
+            standard: "Use the MCP snippet below in Windsurf instead of expecting a Cursor-style desktop patch.",
+            wide: "Use the MCP snippet below in Windsurf instead of expecting a built-in desktop patch. This keeps the install story honest while still giving Windsurf users a real wedge path.",
+          }, density),
+        ],
+      },
+      sections: [
+        {
+          label: "Manual config",
+          lines: windsurfAdapter.configSnippet.split("\n"),
+        },
+        {
+          label: "Next path",
+          entries: [
+            patchChoice("Run demo stop", ["--client", "windsurf", "--demo", "destructive_shell"], ["Prove the stop before serving real Windsurf traffic."]),
+            patchChoice("Observe first", ["--client", "windsurf", "--serve", "--port", String(port), "--shadow-mode", "--no-upstream"], ["Start in shadow mode first so Windsurf can be observed before enforcement."]),
+            patchChoice("Perfect first stop", ["--client", "windsurf", "--first-stop", "--protect", "repo"], ["Run the shortest wedge-to-proof path for Windsurf."]),
+          ],
+        },
+      ],
+      footer: compact ? [] : ["Windsurf is supported as an honest MCP/manual path today, not as a fake built-in desktop patch target."],
     };
   }
   return {
@@ -330,6 +382,17 @@ export function inspectClientPatchTarget(shield = "cursor", options = {}) {
   const normalizedShield = String(shield || "").trim() || "cursor";
   const target = resolvePatchTarget(normalizedShield, options);
   const patchSupported = ["cursor", "claude-desktop"].includes(normalizedShield);
+  if (!patchSupported) {
+    return {
+      ...target,
+      patchSupported,
+      fileExists: false,
+      parentExists: false,
+      clientDetected: false,
+      serverPatched: false,
+      parseError: false,
+    };
+  }
   const parentDir = path.dirname(target.filePath);
   const parentExists = fs.existsSync(parentDir);
   const snapshot = readJsonFileSync(target.filePath);

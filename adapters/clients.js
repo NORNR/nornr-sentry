@@ -68,6 +68,26 @@ export function buildClientAdapter(shield = "cursor", options = {}) {
     };
   }
 
+  if (shield === "windsurf") {
+    return {
+      ...base,
+      clientLabel: "Windsurf",
+      setupCopy: "Route one consequential Windsurf MCP lane through NORNR Sentry first.",
+      configSnippet: stringifyConfig({
+        mcpServers: {
+          "nornr-sentry": {
+            command: "npx",
+            args: commandArgs,
+            env: {
+              NORNR_OWNER_ID: ownerId,
+              NORNR_MANDATE_ID: mandateId,
+            },
+          },
+        },
+      }),
+    };
+  }
+
   return {
     ...base,
     clientLabel: "Cursor",

@@ -1,12 +1,15 @@
 import { buildSentrySummary } from "./summary.js";
 import { pickByDensity, renderHero, renderSurface, terminalDensityFlags } from "./terminal-theme.js";
 
+import { defaultProtectPresetForShield, demoForProtectPreset, protectPresetLabel } from "../mandates/defaults.js";
+
 function recommendNext(summary = {}, shield = "cursor") {
+  const preset = defaultProtectPresetForShield(shield);
   if (!summary.defendedRecordsCreated) {
     return {
-      label: "Run demo stop",
-      argv: ["--client", shield, "--demo", "destructive_shell"],
-      why: "No defended records exist yet, so the fastest path is to create the first proof object.",
+      label: "Perfect first stop",
+      argv: ["--client", shield, "--first-stop", "--protect", preset],
+      why: `No defended records exist yet, so the fastest path is to prove one ${protectPresetLabel(preset).toLowerCase()} stop and open the first proof object.`,
       mode: "bootstrap",
       urgency: "high",
       followup: "After the first stop, come back here and open the defended record browser.",
@@ -61,13 +64,32 @@ export async function buildProofHub(options = {}) {
   const shield = String(options.shield || "cursor").trim() || "cursor";
   const summary = await buildSentrySummary(options).catch(() => ({ defendedRecordsCreated: 0, statusCounts: {}, policyInterventionsThisWeek: 0 }));
   const recommendation = recommendNext(summary, shield);
+  const preset = defaultProtectPresetForShield(shield);
   const entries = sortHubEntries([
+      {
+        label: "Perfect first stop",
+        argv: ["--client", shield, "--first-stop", "--protect", preset],
+        commandLines: [`nornr-sentry --client ${shield} --first-stop --protect ${preset}`],
+        detailLines: [`Shortest path to the first ${protectPresetLabel(preset).toLowerCase()} stop and first defended record.`],
+      },
+      {
+        label: "Protect presets",
+        argv: ["--client", shield, "--protect-presets", "--protect", preset],
+        commandLines: [`nornr-sentry --client ${shield} --protect-presets --protect ${preset}`],
+        detailLines: ["Choose repo, secrets, production, spend, or outbound before you widen the install story."],
+      },
       {
         label: "Browse defended records",
         argv: ["--client", shield, "--records"],
         commandLines: [`nornr-sentry --client ${shield} --records`],
         detailLines: ["Open the real local proof objects from the boundary."],
       },
+      ...(summary.defendedRecordsCreated ? [{
+        label: "Export latest defended record",
+        argv: ["--client", shield, "--export-record", "latest"],
+        commandLines: [`nornr-sentry --client ${shield} --export-record latest`],
+        detailLines: ["Open the portable proof object and copy a public-safe summary, X post, or issue update."],
+      }] : []),
       {
         label: "Replay local records",
         argv: ["--client", shield, "--record-replay"],
@@ -79,6 +101,12 @@ export async function buildProofHub(options = {}) {
         argv: ["--client", shield, "--policy-replay"],
         commandLines: [`nornr-sentry --client ${shield} --policy-replay`],
         detailLines: ["Run synthetic attack scenarios for staged proof."],
+      },
+      {
+        label: "Client paths",
+        argv: ["--client", shield, "--client-paths"],
+        commandLines: [`nornr-sentry --client ${shield} --client-paths`],
+        detailLines: ["See the real install path for Cursor, Claude Desktop, Windsurf, OpenAI / Codex, and Generic MCP."],
       },
       {
         label: "View local summary",
@@ -138,6 +166,7 @@ export function buildProofHubView(hub = {}, explicitColumns = 80) {
         lines: [
           "Defended records are real local proof objects.",
           "Replay local records re-evaluates those proof objects under the current mandate.",
+          "Export latest defended record turns the lane into a portable, shareable artifact.",
           "Replay attacks is synthetic and staged by design.",
         ],
       },

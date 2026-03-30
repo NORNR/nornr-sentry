@@ -7,6 +7,7 @@ import {
 } from "./terminal-theme.js";
 import { inspectGuidedSetup, buildGuidedSetupArgv, buildObserveFirstArgv } from "./first-run.js";
 import { buildGoldenPathClientEntry } from "./golden-path.js";
+import { defaultProtectPresetForShield } from "../mandates/defaults.js";
 
 const MIN_WELCOME_WIDTH = 52;
 
@@ -151,6 +152,24 @@ export function resolveSentryPaletteCommand(options = {}, rawInput = "") {
     }
     case "records":
       return { kind: "launch", argv: ["--client", shield, "--records"], label: "Defended records" };
+    case "share":
+    case "export-proof":
+      return { kind: "launch", argv: ["--client", shield, "--export-record", "latest"], label: "Export defended record" };
+    case "copy-share":
+      return { kind: "launch", argv: ["--client", shield, "--export-record", "latest", "--copy-share", firstArg || "summary"], label: "Copy share proof" };
+    case "first-stop":
+    case "first":
+      return { kind: "launch", argv: ["--client", shield, "--first-stop", "--protect", options.protectPreset || defaultProtectPresetForShield(shield)], label: "First stop" };
+    case "protect":
+    case "presets":
+    case "protect-presets":
+      return { kind: "launch", argv: ["--client", shield, "--protect-presets", "--protect", options.protectPreset || defaultProtectPresetForShield(shield)], label: "Protect presets" };
+    case "clients":
+    case "client-paths":
+      return { kind: "launch", argv: ["--client", shield, "--client-paths"], label: "Client paths" };
+    case "scale":
+    case "scale-path":
+      return { kind: "launch", argv: ["--client", shield, "--scale-path"], label: "Scale path" };
     case "proof":
     case "proof-hub":
       return { kind: "launch", argv: ["--client", shield, "--proof-hub"], label: "Proof hub" };
@@ -219,6 +238,15 @@ export function buildWelcomeView(options = {}, explicitColumns = currentTerminal
 
   const startHere = [
     buildWelcomeEntry(
+      "Perfect first stop",
+      buildWelcomeCommandLines(shield, `--first-stop --protect ${options.protectPreset || defaultProtectPresetForShield(shield)}`, commandLayout),
+      pickByDensity({
+        compact: "Install, prove one stop, then open the proof queue.",
+        standard: "Run the shortest path from install to first stop to first defended record.",
+        wide: "Run the shortest path from install to first stop to first defended record before you widen the product story.",
+      }, density),
+    ),
+    buildWelcomeEntry(
       "Run demo stop",
       buildWelcomeCommandLines(shield, "--demo destructive_shell", commandLayout),
       pickByDensity({
@@ -231,9 +259,9 @@ export function buildWelcomeView(options = {}, explicitColumns = currentTerminal
       "Choose patch / wiring",
       buildWelcomeCommandLines("", "--patch-client", commandLayout),
       pickByDensity({
-        compact: "Choose Cursor, Claude Desktop, or provider wiring.",
-        standard: "Choose Cursor, Claude Desktop, or provider wiring before you continue.",
-        wide: "Choose Cursor, Claude Desktop, or a provider wiring path before you continue into the local boundary.",
+        compact: "Choose Cursor, Claude Desktop, Windsurf, or provider wiring.",
+        standard: "Choose Cursor, Claude Desktop, Windsurf, or provider wiring before you continue.",
+        wide: "Choose Cursor, Claude Desktop, Windsurf, or a provider wiring path before you continue into the local boundary.",
       }, density),
     ),
     buildWelcomeEntry(
@@ -309,6 +337,39 @@ export function buildWelcomeView(options = {}, explicitColumns = currentTerminal
         buildGoldenPathClientEntry("claude-desktop", { ...options, port }),
       ],
     });
+    sections.push({
+      label: "Build on top",
+      entries: [
+        buildWelcomeEntry(
+          "Perfect first stop",
+          buildWelcomeCommandLines(shield, `--first-stop --protect ${options.protectPreset || defaultProtectPresetForShield(shield)}`, commandLayout),
+          pickByDensity({
+            compact: "Install, prove one stop, then open the proof queue.",
+            standard: "Run the shortest path from patch to first stop to first defended record.",
+            wide: "Run the shortest path from patch to first stop to first defended record before you add more product layers.",
+          }, density),
+        ),
+        buildWelcomeEntry(
+          "Protect presets",
+          buildWelcomeCommandLines(shield, `--protect-presets --protect ${options.protectPreset || defaultProtectPresetForShield(shield)}`, commandLayout),
+          pickByDensity({
+            compact: "Translate raw action classes into one obvious user promise.",
+            standard: "Translate raw action classes into one obvious user promise like repo, secrets, production, spend, or outbound.",
+            wide: "Translate raw action classes into one obvious user promise like repo, secrets, production, spend, or outbound before you widen distribution.",
+          }, density),
+        ),
+        buildWelcomeEntry(
+          "Client paths",
+          buildWelcomeCommandLines(shield, "--client-paths", commandLayout),
+          "See the real install path for Cursor, Claude Desktop, Windsurf, OpenAI / Codex wiring, and Generic MCP.",
+        ),
+        buildWelcomeEntry(
+          "Scale path",
+          buildWelcomeCommandLines(shield, "--scale-path", commandLayout),
+          "Keep the personal wedge first, then decide when team and fleet layers actually help.",
+        ),
+      ],
+    });
   }
 
   return {
@@ -330,19 +391,19 @@ export function buildWelcomeView(options = {}, explicitColumns = currentTerminal
           ? pickByDensity({
               compact: "Safe local setup detected. Secure now or follow the manual path below.",
               standard: "Safe local setup detected. Secure now, or follow the manual path below.",
-              wide: "Safe local setup detected: secure now, or use the manual path below: choose patch or wiring, verify the target, run a demo stop, then start in observe mode.",
+              wide: "Safe local setup detected: secure now, or use the manual path below: choose patch or wiring, verify the target, run a demo stop, open the proof queue, then start in observe mode.",
             }, density)
           : pickByDensity({
               compact: "Patch, verify, run a demo, then observe safely.",
               standard: "Patch the client, verify it, run a blocked demo, then start in observe mode.",
-              wide: "Patch the client, verify it, run a blocked demo, then start in observe mode before serving real client traffic.",
+              wide: "Patch or wire the client, verify it, run a blocked demo, open the proof queue, then start in observe mode before serving real client traffic.",
             }, density),
       ],
     },
     sections,
     guidedSetup,
     footer: compact
-      ? [guidedSetup.show ? "y secure now. n manual path. d demo. p patch/wiring. o observe. v records." : "d demo. p patch/wiring. o observe. s serve when ready. v records."]
+      ? [guidedSetup.show ? "y secure now. n manual path. f first stop. d demo. p patch/wiring. o observe. v records." : "f first stop. d demo. p patch/wiring. o observe. s serve when ready. v records."]
       : [],
   };
 }

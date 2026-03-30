@@ -122,6 +122,12 @@ node bin/nornr-sentry.js --client claude-desktop --serve --shadow-mode --no-upst
 node bin/nornr-sentry.js --client claude-desktop --serve
 ```
 
+Windsurf also uses a manual MCP/wiring path today instead of a built-in desktop patch:
+
+```bash
+node bin/nornr-sentry.js --patch-guide windsurf
+```
+
 OpenAI / Codex-style traffic does not use a desktop patch. Start with the wiring guide instead:
 
 ```bash
@@ -269,6 +275,14 @@ Export the latest defended record:
 node bin/nornr-sentry.js --client cursor --export-record latest
 ```
 
+Copy a public-safe share variant directly:
+
+```bash
+node bin/nornr-sentry.js --client cursor --export-record latest --copy-share summary
+node bin/nornr-sentry.js --client cursor --export-record latest --copy-share x
+node bin/nornr-sentry.js --client cursor --export-record latest --copy-share issue
+```
+
 Or export one specific defended record:
 
 ```bash
@@ -303,9 +317,10 @@ node bin/nornr-sentry.js --client cursor --verify-patch
 node bin/nornr-sentry.js --client claude-desktop --verify-patch
 ```
 
-For OpenAI / Codex-style traffic or Generic MCP, use the wiring guide instead of desktop patch verification:
+For Windsurf, OpenAI / Codex-style traffic, or Generic MCP, use the wiring guide instead of desktop patch verification:
 
 ```bash
+node bin/nornr-sentry.js --patch-guide windsurf
 node bin/nornr-sentry.js --patch-guide openai-codex
 node bin/nornr-sentry.js --patch-guide generic-mcp
 ```

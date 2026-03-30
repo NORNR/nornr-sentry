@@ -1,4 +1,4 @@
-const SUPPORTED_SHIELDS = new Set(["cursor", "claude-desktop", "generic-mcp"]);
+const SUPPORTED_SHIELDS = new Set(["cursor", "claude-desktop", "generic-mcp", "windsurf"]);
 const SUPPORTED_DEMOS = new Set([
   "destructive_shell",
   "write_outside_scope",
@@ -9,6 +9,7 @@ const SUPPORTED_DEMOS = new Set([
   "production_mutation",
 ]);
 const DEFAULT_WINDOW_MINUTES = 10;
+const SUPPORTED_PROTECT_PRESETS = new Set(["repo", "secrets", "production", "spend", "outbound"]);
 const DISALLOWED_PREFIXES = [
   "--remote-approval",
   "--hosted-",
@@ -52,6 +53,10 @@ function buildDefaults() {
     verifyPatch: false,
     summary: false,
     proofHub: false,
+    firstStop: false,
+    protectPresets: false,
+    clientPaths: false,
+    scalePath: false,
     policyReplay: false,
     policyReplayDemo: false,
     attackMe: false,
@@ -61,6 +66,7 @@ function buildDefaults() {
     apply: false,
     tightenHistory: false,
     exportRecord: "",
+    copyShare: "",
     recordsFilter: "all",
     recordsActionClass: "",
     recordsSort: "latest",
@@ -70,6 +76,7 @@ function buildDefaults() {
     goldenPath: false,
     records: false,
     guidedSetup: false,
+    protectPreset: "",
     runtimeContext: "",
     serve: false,
     shadowMode: process.env.NORNR_SHADOW_MODE === "1",
@@ -177,6 +184,22 @@ export function parsePublicArgs(argv = process.argv.slice(2)) {
       parsed.proofHub = true;
       continue;
     }
+    if (token === "--first-stop") {
+      parsed.firstStop = true;
+      continue;
+    }
+    if (token === "--protect-presets") {
+      parsed.protectPresets = true;
+      continue;
+    }
+    if (token === "--client-paths") {
+      parsed.clientPaths = true;
+      continue;
+    }
+    if (token === "--scale-path") {
+      parsed.scalePath = true;
+      continue;
+    }
     if (token === "--runtime-panel") {
       parsed.runtimePanel = true;
       continue;
@@ -187,6 +210,11 @@ export function parsePublicArgs(argv = process.argv.slice(2)) {
     }
     if (token === "--runtime-context" && argv[index + 1]) {
       parsed.runtimeContext = argv[index + 1];
+      index += 1;
+      continue;
+    }
+    if (token === "--protect" && argv[index + 1]) {
+      parsed.protectPreset = argv[index + 1];
       index += 1;
       continue;
     }
@@ -223,9 +251,24 @@ export function parsePublicArgs(argv = process.argv.slice(2)) {
       parsed.tightenHistory = true;
       continue;
     }
-    if (token === "--export-record" && argv[index + 1]) {
-      parsed.exportRecord = argv[index + 1];
-      index += 1;
+    if (token === "--export-record") {
+      const next = argv[index + 1];
+      if (next && !String(next).startsWith("--")) {
+        parsed.exportRecord = next;
+        index += 1;
+      } else {
+        parsed.exportRecord = "latest";
+      }
+      continue;
+    }
+    if (token === "--copy-share") {
+      const next = argv[index + 1];
+      if (next && !String(next).startsWith("--")) {
+        parsed.copyShare = next;
+        index += 1;
+      } else {
+        parsed.copyShare = "summary";
+      }
       continue;
     }
     if (token === "--record-replay") {
@@ -326,13 +369,22 @@ export function parsePublicArgs(argv = process.argv.slice(2)) {
   }
 
   if (!SUPPORTED_SHIELDS.has(parsed.shield)) {
-    throw new Error(`Unsupported shield "${parsed.shield}". Expected cursor, claude-desktop or generic-mcp.`);
+    throw new Error(`Unsupported shield "${parsed.shield}". Expected cursor, claude-desktop, generic-mcp or windsurf.`);
   }
   if (!SUPPORTED_DEMOS.has(parsed.demo)) {
     throw new Error(`Unsupported demo "${parsed.demo}".`);
   }
-  if (parsed.patchGuide && !["openai-codex", "generic-mcp"].includes(parsed.patchGuide)) {
+  if (parsed.patchGuide && !["openai-codex", "generic-mcp", "windsurf"].includes(parsed.patchGuide)) {
     throw new Error(`Unsupported patch guide target "${parsed.patchGuide}".`);
+  }
+  if (parsed.protectPreset && !SUPPORTED_PROTECT_PRESETS.has(parsed.protectPreset)) {
+    throw new Error(`Unsupported protect preset "${parsed.protectPreset}".`);
+  }
+  if (parsed.copyShare && !["summary", "x", "slack", "issue", "markdown"].includes(parsed.copyShare)) {
+    throw new Error(`Unsupported share copy variant "${parsed.copyShare}".`);
+  }
+  if (parsed.copyShare && !parsed.exportRecord) {
+    parsed.exportRecord = "latest";
   }
   if (parsed.printProvider && !["openai", "anthropic", "all"].includes(parsed.printProvider)) {
     throw new Error(`Unsupported provider print target "${parsed.printProvider}".`);
