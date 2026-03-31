@@ -12,13 +12,13 @@
         <div class="eyebrow">NORNR SENTRY</div>
         <h1>Stop one dangerous agent action before it becomes real.</h1>
         <p class="lede">
-          NORNR Sentry is the local airbag for Cursor, Claude Desktop, Windsurf and provider-style agent loops.
-          Point one lane at Sentry, trigger one dangerous action, and get a hard stop-screen before the action clears.
+          NORNR Sentry is the local airbag for one dangerous lane.
+          Point one client or provider path at Sentry, trigger one dangerous action, and stop it before it clears.
         </p>
         <div class="actions">
-          <code>npx nornr-sentry</code>
+          <code>npx nornr-sentry --first-stop</code>
           <code>npx nornr-sentry --patch-client</code>
-          <code>npm install -g nornr-sentry</code>
+          <code>npx nornr-sentry --records</code>
           <code>npx nornr-sentry --client cursor --policy-replay</code>
         </div>
       </section>
@@ -92,19 +92,19 @@
 
       <section class="three-up proof-flow">
         <article class="card copy">
-          <div class="label">Proof flow</div>
-          <strong>Choose patch or wiring → choose verify target → demo stop → observe first → serve for real → export defended record.</strong>
-          <p>That is the whole public wedge. One real path chooser, one dangerous action, one stop-screen, one defended record you can replay and share.</p>
+          <div class="label">Fastest path</div>
+          <strong>First stop → verify target → export defended record.</strong>
+          <p>That is the whole public wedge. One real path, one dangerous action, one stop-screen, one defended record you can replay and share.</p>
         </article>
         <article class="card copy">
-          <div class="label">Start with chooser</div>
-          <strong><code>nornr-sentry --patch-client</code></strong>
-          <p>Cursor and Claude Desktop patch directly. Windsurf, OpenAI / Codex-style traffic, and generic MCP use a wiring path instead.</p>
+          <div class="label">Start here</div>
+          <strong><code>nornr-sentry --first-stop</code></strong>
+          <p>Use the shortest path first. Open the chooser only when you need a different desktop patch or provider wiring target.</p>
         </article>
         <article class="card copy">
-          <div class="label">Direct desktop path</div>
+          <div class="label">If you already know the target</div>
           <strong><code>nornr-sentry --client claude-desktop --patch-client</code></strong>
-          <p>You can still jump straight to Cursor or Claude Desktop when you already know the target. Windsurf stays an honest MCP/manual path. Verify next, then run one blocked demo before live serve.</p>
+          <p>Jump straight to Cursor or Claude Desktop when the target is already known. Windsurf stays an honest MCP/manual path. Verify next, then run one blocked demo before live serve.</p>
         </article>
       </section>
 
@@ -112,7 +112,7 @@
         <article class="card copy">
           <div class="label">Why it hits</div>
           <strong>One dangerous action. One hard stop. One defended record.</strong>
-          <p>This is not a universal firewall pitch. It is one obvious moment of relief developers can feel in seconds.</p>
+          <p>This is not a universal firewall pitch. It is one obvious moment of relief developers can feel in seconds, then one proof object they can keep.</p>
         </article>
         <article class="card copy">
           <div class="label">Provider mode</div>

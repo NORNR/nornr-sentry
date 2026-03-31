@@ -2,6 +2,7 @@ import { parsePublicArgs } from "./public-args.js";
 import { createAmbientTrustTracker, emitDecisionTrace, formatAmbientTrustHeartbeat } from "./decision-trace.js";
 import { buildClientAdapter } from "../adapters/clients.js";
 import { buildPatchChooserView, buildPatchGuideView, buildPatchInspectView, buildPatchSummaryView, buildVerifyChooserView, inspectClientPatchTarget, patchClientConfig, patchTargetExplicitlyRequested, renderPatchChooser, renderPatchGuide, renderPatchInspect, renderPatchSummary, renderVerifyChooser } from "./patch-cursor.js";
+import { reportActivationMilestone } from "./activation-report.js";
 import { buildPolicyReplay, buildPolicyReplayView, renderPolicyReplay } from "./policy-replay.js";
 import { buildRecordingFlow } from "./recording-flow.js";
 import {
@@ -29,6 +30,7 @@ import { buildRecordsBrowser, buildRecordsBrowserView, renderRecordsBrowser } fr
 import { buildProofHub, buildProofHubView, renderProofHub } from "./proof-hub.js";
 import { buildServeStatusView, renderServeStatus } from "./serve-status.js";
 import { buildRuntimeConfigView, renderRuntimeConfig } from "./runtime-config.js";
+import { maybePrintSentryUpdateNotice } from "./update-notifier.js";
 import { createLiveRuntimeController } from "./live-runtime.js";
 import { renderSentryWelcome } from "./welcome.js";
 import { applyGuidedSetup } from "./first-run.js";
@@ -300,6 +302,8 @@ async function waitForResolution(session) {
 }
 
 export async function runPublicSentryCli(argv = process.argv.slice(2), navigation = {}) {
+  await maybePrintSentryUpdateNotice({ argv });
+
   const parsed = {
     ...parsePublicArgs(argv),
     __argv: Array.isArray(argv) ? argv.slice() : [],
@@ -540,6 +544,14 @@ export async function runPublicSentryCli(argv = process.argv.slice(2), navigatio
 
   if (parsed.records) {
     const browser = await buildRecordsBrowser(parsed);
+    const recordsMilestone = await reportActivationMilestone(parsed, {
+      milestone: "records_opened",
+      lane: browser?.selectedRecord?.actionClass || browser?.activeActionClass || "",
+      actionClass: browser?.selectedRecord?.actionClass || browser?.activeActionClass || "",
+      surface: "records_browser",
+      recordsFilter: browser?.activeFilter || parsed.recordsFilter,
+      recordsSort: browser?.activeSort || parsed.recordsSort,
+    });
     const surface = await showReadOnlySurface({
       parsed,
       data: browser,
@@ -551,7 +563,7 @@ export async function runPublicSentryCli(argv = process.argv.slice(2), navigatio
       clearInteractiveSurface();
       return runPublicSentryCli(surface.launchArgv, createNavigationState(parsed.__argv, navigation));
     }
-    return { ...surface, recordsBrowser: browser };
+    return { ...surface, recordsBrowser: browser, recordsMilestone };
   }
 
   if (parsed.proofHub) {

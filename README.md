@@ -1,12 +1,15 @@
 # NORNR Sentry
 
-`NORNR Sentry` is a local decision layer for consequential agent actions.
+`NORNR Sentry` is the local airbag for one dangerous agent action.
+
+It is also the local decision layer for consequential agent actions.
 
 ![NORNR Sentry blocked stop-screen](./site/assets/nornr-sentry-blocked-stop-screen.png)
 
 This public repo is the open wedge:
 
 - one dangerous action
+- one stop-screen
 - one mandate conflict
 - one human choice
 - one defended record afterward
@@ -28,22 +31,22 @@ After install, Sentry opens into a local operator station for patch / wiring, ve
 
 ## Install
 
-Open the app:
-
-```bash
-npx nornr-sentry
-```
-
 Fastest path to the first stop:
 
 ```bash
 npx nornr-sentry --first-stop
 ```
 
-Open the direct install chooser:
+Open the chooser only when you need a different desktop patch or provider wiring target:
 
 ```bash
 npx nornr-sentry --patch-client
+```
+
+Open the defended record browser after the first stop:
+
+```bash
+npx nornr-sentry --records
 ```
 
 Or install globally:
@@ -52,14 +55,27 @@ Or install globally:
 npm install -g nornr-sentry
 ```
 
+Update an older global install in one command:
+
+```bash
+npm install -g nornr-sentry@latest
+```
+
+Run the latest version once without updating the global install:
+
+```bash
+npx nornr-sentry@latest --first-stop
+```
+
 ## Public proof flow
 
-1. Open Sentry or jump straight to `--first-stop`.
+1. Run `npx nornr-sentry --first-stop`.
 2. Patch / wire and verify the real target.
 3. Run one obvious stop.
 4. Open the proof queue and export the defended record.
-5. Observe first in shadow mode.
-6. Serve for real.
+5. Open the records browser after the first stop so the proof step is visible too.
+6. Observe first in shadow mode.
+7. Serve for real.
 
 Or clone and run locally:
 
@@ -67,6 +83,10 @@ Or clone and run locally:
 npm install
 npm run demo:cursor
 ```
+
+## Experiment matrix
+
+See [FIRST_STOP_EXPERIMENT_MATRIX.md](./FIRST_STOP_EXPERIMENT_MATRIX.md) for the live public first-stop CTA/copy variants and the proof-step readout.
 
 ## NPM release
 
