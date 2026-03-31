@@ -104,8 +104,16 @@ function replayEntry(row = {}, shield = "cursor") {
     selectionKey: row.demo,
     commandLines: [`${verdictLabel(row.verdict)} · ${actionClassLabel(actionClass)}`],
     compactCommandLines: [`${verdictLabel(row.verdict)} · ${actionClassLabel(actionClass)}`],
-    detailLines: [String(row.proofLabel || "").trim(), `Synthetic lane ${row.demo}`].filter(Boolean),
-    compactDetailLines: [String(row.proofLabel || "").trim()].filter(Boolean),
+    detailLines: [
+      `Verdict: ${row.verdict}`,
+      row.decision?.primaryReason ? `Reason: ${row.decision.primaryReason}` : "",
+      String(row.proofLabel || "").trim(),
+      `Synthetic lane ${row.demo}`,
+    ].filter(Boolean),
+    compactDetailLines: [
+      `Verdict: ${row.verdict}`,
+      row.decision?.primaryReason ? `Reason: ${row.decision.primaryReason}` : String(row.proofLabel || "").trim(),
+    ].filter(Boolean),
     tone: verdictTone(row.verdict),
     meta: {
       kind: "replay",
@@ -160,6 +168,7 @@ export function buildPolicyReplay(options = {}) {
     summary: {
       blocked: rows.filter((row) => row.verdict === "blocked").length,
       approved: rows.filter((row) => row.verdict === "approved").length,
+      totalKnown: allRows.length,
     },
   };
 }
@@ -173,7 +182,7 @@ export function buildPolicyReplayView(replay, explicitColumns) {
       density,
       twoColumn: false,
       hero: {
-        status: "REPLAY SCENARIO",
+        status: "MANDATE STRESS TEST",
         lines: [
           `Client ${replay.shield} | Mandate ${replay.mandateId}`,
           pickByDensity({
@@ -181,6 +190,7 @@ export function buildPolicyReplayView(replay, explicitColumns) {
             standard: `${replay.summary?.blocked || 0}/${replay.rows.length} selected attack stayed inside the current boundary.`,
             wide: `${replay.summary?.blocked || 0}/${replay.rows.length} selected attack stayed inside the current boundary.`,
           }, density),
+          `${replay.summary?.totalKnown || replay.rows.length}/${replay.summary?.totalKnown || replay.rows.length} known attack lanes stayed inside decision boundary.`,
         ],
       },
       sections: replay.rows.map((row, index) => ({
@@ -220,7 +230,7 @@ export function buildPolicyReplayView(replay, explicitColumns) {
       }
       : null,
     hero: {
-      status: "REPLAY ATTACKS",
+      status: "POLICY REPLAY",
       lines: [
         `Client ${replay.shield} | Mandate ${replay.mandateId}`,
         pickByDensity({

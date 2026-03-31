@@ -1,6 +1,6 @@
 {
   "name": "nornr-sentry",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "private": false,
   "type": "module",
   "description": "NORNR Sentry local airbag for dangerous agent actions",

@@ -34,6 +34,12 @@ Open the app:
 npx nornr-sentry
 ```
 
+Fastest path to the first stop:
+
+```bash
+npx nornr-sentry --first-stop
+```
+
 Open the direct install chooser:
 
 ```bash
@@ -48,12 +54,12 @@ npm install -g nornr-sentry
 
 ## Public proof flow
 
-1. Open Sentry or choose patch / wiring.
-2. Verify the real target.
-3. Run one demo stop.
-4. Observe first in shadow mode.
-5. Serve for real.
-6. Open the proof queue, export the defended record, and replay it locally.
+1. Open Sentry or jump straight to `--first-stop`.
+2. Patch / wire and verify the real target.
+3. Run one obvious stop.
+4. Open the proof queue and export the defended record.
+5. Observe first in shadow mode.
+6. Serve for real.
 
 Or clone and run locally:
 

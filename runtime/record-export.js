@@ -122,7 +122,7 @@ export function buildSentryDefendedRecordExportView(result = {}, explicitColumns
       }
       : null,
     hero: {
-      status: screenshotMode ? "SHARE-SAFE PROOF" : "DEFENDED RECORD",
+      status: screenshotMode ? "SHARE-SAFE PROOF" : "DEFENDED RECORD EXPORT",
       lines: [
         `Proof ${result.sharePack?.recordId || "local"} · ${result.sharePack?.verdict || "blocked"}`,
         result.sharePack?.artifactSummary || result.sharePack?.headline || "Share-ready defended record exported locally.",
