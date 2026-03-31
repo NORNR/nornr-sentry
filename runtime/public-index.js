@@ -30,9 +30,13 @@ import { buildRecordsBrowser, buildRecordsBrowserView, renderRecordsBrowser } fr
 import { buildProofHub, buildProofHubView, renderProofHub } from "./proof-hub.js";
 import { buildServeStatusView, renderServeStatus } from "./serve-status.js";
 import { buildRuntimeConfigView, renderRuntimeConfig } from "./runtime-config.js";
-import { buildDoctorReport, renderDoctorReport } from "./doctor.js";
+import { applyDoctorFixes, buildDoctorReport, renderDoctorFixResult, renderDoctorReport } from "./doctor.js";
 import { buildEvalHarness, renderEvalHarness } from "./eval-harness.js";
 import { buildResumeReview, renderResumeReview, readReviewMemory } from "./review-memory.js";
+import { buildTrustAdvisor, renderTrustAdvisor } from "./trust-advisor.js";
+import { buildProofQualityReport, renderProofQualityReport } from "./proof-quality.js";
+import { buildReviewHandoff, renderReviewHandoff } from "./review-handoff.js";
+import { buildOperatorScorecard, renderOperatorScorecard } from "./operator-scorecard.js";
 import { maybePrintSentryUpdateNotice } from "./update-notifier.js";
 import { createLiveRuntimeController } from "./live-runtime.js";
 import { renderSentryWelcome } from "./welcome.js";
@@ -489,6 +493,12 @@ export async function runPublicSentryCli(argv = process.argv.slice(2), navigatio
     return { ...surface, scalePath: scale };
   }
 
+  if (parsed.doctorFix) {
+    const result = await applyDoctorFixes(parsed);
+    console.log(renderDoctorFixResult(result));
+    return { parsed, doctorFix: result };
+  }
+
   if (parsed.doctor) {
     const report = await buildDoctorReport(parsed);
     console.log(renderDoctorReport(report));
@@ -506,6 +516,30 @@ export async function runPublicSentryCli(argv = process.argv.slice(2), navigatio
     const report = buildEvalHarness(parsed);
     console.log(renderEvalHarness(report));
     return { parsed, evalHarness: report };
+  }
+
+  if (parsed.trustAdvisor) {
+    const report = await buildTrustAdvisor(parsed);
+    console.log(renderTrustAdvisor(report));
+    return { parsed, trustAdvisor: report };
+  }
+
+  if (parsed.proofLint) {
+    const report = await buildProofQualityReport(parsed);
+    console.log(renderProofQualityReport(report));
+    return { parsed, proofLint: report };
+  }
+
+  if (parsed.reviewHandoff) {
+    const report = await buildReviewHandoff(parsed);
+    console.log(renderReviewHandoff(report));
+    return { parsed, reviewHandoff: report };
+  }
+
+  if (parsed.operatorScorecard) {
+    const report = await buildOperatorScorecard(parsed);
+    console.log(renderOperatorScorecard(report));
+    return { parsed, operatorScorecard: report };
   }
 
   if (parsed.goldenPath) {

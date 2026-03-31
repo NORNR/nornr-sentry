@@ -176,6 +176,10 @@ export function buildSentryDefendedRecordExportView(result = {}, explicitColumns
         label: "Review handoff",
         lines: result.reviewSummaryLines || [],
       },
+      ...(result.sharePack?.decisionSupport?.playbookLines?.length ? [{
+        label: "Lane playbook",
+        lines: result.sharePack.decisionSupport.playbookLines,
+      }] : []),
       {
         label: "Next step",
         entries: result.suggestedCommands || [],

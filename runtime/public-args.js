@@ -11,6 +11,8 @@ const SUPPORTED_DEMOS = new Set([
 const DEFAULT_WINDOW_MINUTES = 10;
 const SUPPORTED_PROTECT_PRESETS = new Set(["repo", "secrets", "production", "spend", "outbound"]);
 const SUPPORTED_TRUST_MODES = new Set(["standard", "strict", "observe-first", "repo-safe", "prod-locked", "finance-guarded", "outbound-guarded"]);
+const SUPPORTED_EVAL_PACKS = new Set(["all", "repo", "secrets", "finance", "production", "outbound"]);
+const SUPPORTED_HANDOFF_AUDIENCES = new Set(["team", "buyer", "auditor"]);
 const DISALLOWED_PREFIXES = [
   "--remote-approval",
   "--hosted-",
@@ -56,8 +58,13 @@ function buildDefaults() {
     proofHub: false,
     firstStop: false,
     doctor: false,
+    doctorFix: false,
     resume: false,
     evalHarness: false,
+    trustAdvisor: false,
+    proofLint: false,
+    reviewHandoff: false,
+    operatorScorecard: false,
     protectPresets: false,
     clientPaths: false,
     scalePath: false,
@@ -82,6 +89,8 @@ function buildDefaults() {
     guidedSetup: false,
     protectPreset: "",
     trustMode: "",
+    evalPack: "all",
+    handoffAudience: "team",
     runtimeContext: "",
     serve: false,
     shadowMode: process.env.NORNR_SHADOW_MODE === "1",
@@ -232,12 +241,42 @@ export function parsePublicArgs(argv = process.argv.slice(2)) {
       parsed.doctor = true;
       continue;
     }
+    if (token === "--doctor-fix") {
+      parsed.doctorFix = true;
+      continue;
+    }
     if (token === "--resume") {
       parsed.resume = true;
       continue;
     }
     if (token === "--eval-harness") {
       parsed.evalHarness = true;
+      continue;
+    }
+    if (token === "--eval-pack" && argv[index + 1]) {
+      parsed.evalPack = argv[index + 1];
+      index += 1;
+      continue;
+    }
+    if (token === "--trust-advisor") {
+      parsed.trustAdvisor = true;
+      continue;
+    }
+    if (token === "--proof-lint") {
+      parsed.proofLint = true;
+      continue;
+    }
+    if (token === "--review-handoff") {
+      parsed.reviewHandoff = true;
+      continue;
+    }
+    if (token === "--operator-scorecard") {
+      parsed.operatorScorecard = true;
+      continue;
+    }
+    if (token === "--handoff-audience" && argv[index + 1]) {
+      parsed.handoffAudience = argv[index + 1];
+      index += 1;
       continue;
     }
     if (token === "--policy-replay") {
@@ -404,6 +443,12 @@ export function parsePublicArgs(argv = process.argv.slice(2)) {
   }
   if (parsed.trustMode && !SUPPORTED_TRUST_MODES.has(parsed.trustMode)) {
     throw new Error(`Unsupported trust mode "${parsed.trustMode}".`);
+  }
+  if (parsed.evalPack && !SUPPORTED_EVAL_PACKS.has(parsed.evalPack)) {
+    throw new Error(`Unsupported eval pack "${parsed.evalPack}".`);
+  }
+  if (parsed.handoffAudience && !SUPPORTED_HANDOFF_AUDIENCES.has(parsed.handoffAudience)) {
+    throw new Error(`Unsupported handoff audience "${parsed.handoffAudience}".`);
   }
   if (parsed.copyShare && !["summary", "x", "slack", "issue", "markdown"].includes(parsed.copyShare)) {
     throw new Error(`Unsupported share copy variant "${parsed.copyShare}".`);

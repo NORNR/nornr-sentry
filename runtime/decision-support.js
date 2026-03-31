@@ -44,6 +44,50 @@ function operatorHistoryNote(laneMemory = {}) {
   return "No local approval memory exists for this lane yet.";
 }
 
+function buildLanePlaybook(intent = {}, shield = "cursor") {
+  const actionClass = normalizeText(intent?.actionClass);
+  const shared = [`Open the defended record in nornr-sentry --client ${shield} --records before you widen the boundary.`];
+  if (actionClass === "paid_action") {
+    return [
+      "Keep the spend lane explicit.",
+      "Approve once only if the counterparty and amount are both expected.",
+      ...shared,
+    ];
+  }
+  if (actionClass === "outbound_message") {
+    return [
+      "Keep outbound review on until the recipient and message template are trusted.",
+      "Prefer approve once over permanent widening until a repeat-safe pattern exists.",
+      ...shared,
+    ];
+  }
+  if (actionClass === "write_outside_scope") {
+    return [
+      "Tighten the project scope before approving this lane again.",
+      "Do not widen write paths broadly when one repo path would solve the problem.",
+      ...shared,
+    ];
+  }
+  if (["destructive_shell", "production_mutation"].includes(actionClass)) {
+    return [
+      "Treat this as a hard-stop lane unless the mandate truly changed.",
+      "If the action becomes legitimate, create one narrow rule instead of warming the entire posture.",
+      ...shared,
+    ];
+  }
+  if (actionClass === "credential_exfiltration") {
+    return [
+      "Keep the cold stop in place unless you can justify one narrow outbound path.",
+      "Preserve the defended record before any exception is considered.",
+      ...shared,
+    ];
+  }
+  return [
+    "Prefer the narrowest rule that would make the same decision legible next time.",
+    ...shared,
+  ];
+}
+
 function reasonKinds(decision = {}) {
   return new Set((Array.isArray(decision?.reasonDetails) ? decision.reasonDetails : []).map((entry) => normalizeText(entry?.code || entry?.kind)));
 }
@@ -101,6 +145,7 @@ export function buildDecisionSupport(intent = {}, decision = {}, mandate = {}, l
     nextCommand,
     mandateDiffHint,
     approvalMemoryNote: operatorHistoryNote(laneMemory),
+    playbookLines: buildLanePlaybook(intent, shield),
     reasoningSummary: `${headline} Safest next action: ${safestAction}.`,
   };
 }

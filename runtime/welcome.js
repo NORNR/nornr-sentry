@@ -44,6 +44,9 @@ function buildHomeCommandLines(shield = "cursor", mode = "first-stop", layout = 
   if (mode === "serve") return buildWelcomeCommandLines(shield, "--serve", layout);
   if (mode === "records") return buildWelcomeCommandLines(shield, "--records", layout);
   if (mode === "replay") return buildWelcomeCommandLines(shield, "--policy-replay", layout);
+  if (mode === "doctor") return buildWelcomeCommandLines(shield, "--doctor", layout);
+  if (mode === "trust-advisor") return buildWelcomeCommandLines(shield, "--trust-advisor", layout);
+  if (mode === "review-handoff") return buildWelcomeCommandLines(shield, "--review-handoff", layout);
   return buildWelcomeCommandLines(shield, "--first-stop", layout);
 }
 
@@ -184,11 +187,25 @@ export function resolveSentryPaletteCommand(options = {}, rawInput = "") {
       return { kind: "launch", argv: ["--client", shield, "--proof-hub"], label: "Proof hub" };
     case "doctor":
       return { kind: "launch", argv: ["--client", shield, "--doctor"], label: "Doctor" };
+    case "doctor-fix":
+      return { kind: "launch", argv: ["--client", shield, "--doctor-fix"], label: "Doctor fix" };
     case "resume":
       return { kind: "launch", argv: ["--client", shield, "--resume"], label: "Resume review" };
     case "eval":
     case "eval-harness":
       return { kind: "launch", argv: ["--client", shield, "--eval-harness"], label: "Eval harness" };
+    case "trust":
+    case "trust-advisor":
+      return { kind: "launch", argv: ["--client", shield, "--trust-advisor"], label: "Trust advisor" };
+    case "proof-lint":
+    case "lint":
+      return { kind: "launch", argv: ["--client", shield, "--proof-lint"], label: "Proof lint" };
+    case "handoff":
+    case "review-handoff":
+      return { kind: "launch", argv: ["--client", shield, "--review-handoff"], label: "Review handoff" };
+    case "scorecard":
+    case "operator-scorecard":
+      return { kind: "launch", argv: ["--client", shield, "--operator-scorecard"], label: "Operator scorecard" };
     case "golden":
     case "golden-path":
     case "wizard":
@@ -298,6 +315,33 @@ export function buildWelcomeView(options = {}, explicitColumns = currentTerminal
       }, density),
     ),
     buildWelcomeEntry(
+      "Doctor",
+      buildHomeCommandLines(shield, "doctor", commandLayout),
+      pickByDensity({
+        compact: "Diagnose install, proof, and review memory.",
+        standard: "Diagnose install path, proof queue, and saved review memory in one pass.",
+        wide: "Diagnose install path, proof queue, saved review memory, and blocker severity in one pass.",
+      }, density),
+    ),
+    buildWelcomeEntry(
+      "Trust advisor",
+      buildHomeCommandLines(shield, "trust-advisor", commandLayout),
+      pickByDensity({
+        compact: "Recommend the best trust mode from local history.",
+        standard: "Recommend the best clean-room trust mode from local record history.",
+        wide: "Recommend the best clean-room trust mode and show what recent records would change under rollout.",
+      }, density),
+    ),
+    buildWelcomeEntry(
+      "Review handoff",
+      buildHomeCommandLines(shield, "review-handoff", commandLayout),
+      pickByDensity({
+        compact: "Render a short proof handoff.",
+        standard: "Render a short handoff surface for teammates, buyers, or auditors.",
+        wide: "Render a shorter-than-export, richer-than-social handoff with why-safe explanation and lineage.",
+      }, density),
+    ),
+    buildWelcomeEntry(
       "Replay attacks",
       buildHomeCommandLines(shield, "replay", commandLayout),
       pickByDensity({
@@ -360,7 +404,7 @@ export function buildWelcomeView(options = {}, explicitColumns = currentTerminal
     guidedSetup,
     footer: compact
       ? [guidedSetup.show ? "f first stop · p patch · o observe · v records" : "f first stop · p patch · o observe · v records"]
-      : [],
+      : ["Add doctor, trust advisor, proof lint, and review handoff once the first defended record exists."],
   };
 }
 

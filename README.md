@@ -55,6 +55,36 @@ Compare clean-room trust modes across the built-in scenario corpus:
 npx nornr-sentry --eval-harness
 ```
 
+Recommend the best trust mode from local record history:
+
+```bash
+npx nornr-sentry --trust-advisor
+```
+
+Lint the latest proof artifact for handoff quality:
+
+```bash
+npx nornr-sentry --proof-lint
+```
+
+Render the shorter review handoff surface:
+
+```bash
+npx nornr-sentry --review-handoff --handoff-audience buyer
+```
+
+See the local operator scorecard:
+
+```bash
+npx nornr-sentry --operator-scorecard
+```
+
+Apply doctor-safe automatic fixes:
+
+```bash
+npx nornr-sentry --doctor-fix
+```
+
 Open the chooser only when you need a different desktop patch or provider wiring target:
 
 ```bash

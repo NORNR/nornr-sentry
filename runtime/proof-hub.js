@@ -118,7 +118,13 @@ export async function buildProofHub(options = {}) {
         label: "Run doctor",
         argv: ["--client", shield, "--doctor"],
         commandLines: [`nornr-sentry --client ${shield} --doctor`],
-        detailLines: ["Diagnose install path, boundary, proof queue, and review memory in one pass."],
+        detailLines: ["Diagnose install path, boundary, proof queue, review memory, and blocker severity in one pass."],
+      },
+      {
+        label: "Auto-fix doctor-safe issues",
+        argv: ["--client", shield, "--doctor-fix"],
+        commandLines: [`nornr-sentry --client ${shield} --doctor-fix`],
+        detailLines: ["Patch the desktop client and initialize a mandate when doctor says that is safe."],
       },
       {
         label: "Resume review",
@@ -132,6 +138,30 @@ export async function buildProofHub(options = {}) {
         commandLines: [`nornr-sentry --client ${shield} --eval-harness`],
         detailLines: ["Compare the current protect preset across clean-room trust modes."],
       },
+      {
+        label: "Trust advisor",
+        argv: ["--client", shield, "--trust-advisor"],
+        commandLines: [`nornr-sentry --client ${shield} --trust-advisor`],
+        detailLines: ["Recommend the best trust mode from local record history and preview rollout changes."],
+      },
+      ...(summary.defendedRecordsCreated ? [{
+        label: "Proof lint",
+        argv: ["--client", shield, "--proof-lint"],
+        commandLines: [`nornr-sentry --client ${shield} --proof-lint`],
+        detailLines: ["Score the latest defended record for handoff quality and missing context."],
+      }] : []),
+      ...(summary.defendedRecordsCreated ? [{
+        label: "Review handoff",
+        argv: ["--client", shield, "--review-handoff"],
+        commandLines: [`nornr-sentry --client ${shield} --review-handoff`],
+        detailLines: ["Render the short buyer/team/auditor handoff surface for the latest proof object."],
+      }] : []),
+      ...(summary.defendedRecordsCreated ? [{
+        label: "Operator scorecard",
+        argv: ["--client", shield, "--operator-scorecard"],
+        commandLines: [`nornr-sentry --client ${shield} --operator-scorecard`],
+        detailLines: ["See whether the operator is blocking, tightening, or overusing approve once."],
+      }] : []),
     ], recommendation);
   return {
     kind: "nornr.sentry.proof_hub.v1",
@@ -198,6 +228,7 @@ export function buildProofHubView(hub = {}, explicitColumns = 80) {
           "Replay local records re-evaluates those proof objects under the current mandate.",
           "Export latest defended record turns the lane into a portable, shareable artifact.",
           "Replay attacks is synthetic and staged by design.",
+          "Proof lint and review handoff are the buyer-safe follow-up surfaces once the first record exists.",
         ],
       },
     ],

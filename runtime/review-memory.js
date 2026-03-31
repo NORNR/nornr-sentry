@@ -61,24 +61,30 @@ async function writeReviewMemory(filePath = "", value = {}) {
 }
 
 function buildPendingMemory(session = {}, options = {}) {
+  const client = normalizeText(options.shield || session?.adapter?.shield || session?.client?.shield || "cursor") || "cursor";
+  const recordPath = normalizeText(session?.record?.filePath);
   return {
     recordedAt: new Date().toISOString(),
-    client: normalizeText(options.shield || session?.adapter?.shield || session?.client?.shield || "cursor") || "cursor",
+    client,
     actionClass: normalizeText(session?.intent?.actionClass),
     title: normalizeText(session?.intent?.title),
     primaryReason: normalizeText(session?.decision?.primaryReason),
     suggestedAction: normalizeText(session?.operator?.suggestedAction),
     trustMode: normalizeText(session?.mandate?.trustMode || options.trustMode),
     protectPreset: normalizeText(session?.mandate?.preset || options.protectPreset),
-    recordPath: normalizeText(session?.record?.filePath),
-    reviewCommand: `nornr-sentry --client ${normalizeText(options.shield || session?.adapter?.shield || "cursor") || "cursor"} --records`,
+    recordPath,
+    reviewCommand: `nornr-sentry --client ${client} --records`,
+    exportCommand: recordPath ? `nornr-sentry --client ${client} --export-record ${recordPath}` : "",
+    proofHubCommand: `nornr-sentry --client ${client} --proof-hub`,
   };
 }
 
 function buildResolvedMemory(resolution = {}, options = {}) {
+  const client = normalizeText(options.shield || resolution?.adapter?.shield || resolution?.client?.shield || "cursor") || "cursor";
+  const recordPath = normalizeText(resolution?.record?.filePath);
   return {
     recordedAt: new Date().toISOString(),
-    client: normalizeText(options.shield || resolution?.adapter?.shield || resolution?.client?.shield || "cursor") || "cursor",
+    client,
     actionClass: normalizeText(resolution?.intent?.actionClass),
     title: normalizeText(resolution?.intent?.title),
     primaryReason: normalizeText(resolution?.decision?.primaryReason),
@@ -86,8 +92,11 @@ function buildResolvedMemory(resolution = {}, options = {}) {
     finalStatus: normalizeText(resolution?.decision?.finalStatus || resolution?.decision?.status),
     trustMode: normalizeText(resolution?.mandate?.trustMode || options.trustMode),
     protectPreset: normalizeText(resolution?.mandate?.preset || options.protectPreset),
-    recordPath: normalizeText(resolution?.record?.filePath),
-    resumeCommand: `nornr-sentry --client ${normalizeText(options.shield || resolution?.adapter?.shield || "cursor") || "cursor"} --resume`,
+    recordPath,
+    resumeCommand: `nornr-sentry --client ${client} --resume`,
+    exportCommand: recordPath ? `nornr-sentry --client ${client} --export-record ${recordPath}` : "",
+    replayCommand: `nornr-sentry --client ${client} --record-replay`,
+    proofHubCommand: `nornr-sentry --client ${client} --proof-hub`,
   };
 }
 
@@ -147,6 +156,7 @@ export function buildResumeReview(memory = {}, options = {}) {
         compact(lastPending.primaryReason || "No primary reason recorded."),
         `Record: ${formatDisplayPath(lastPending.recordPath, options) || "not written yet"}`,
         `Resume path: ${lastPending.reviewCommand || `nornr-sentry --client ${client} --records`}`,
+        ...(lastPending.exportCommand ? [`Export path: ${lastPending.exportCommand}`] : []),
       ],
     });
   }
@@ -158,6 +168,7 @@ export function buildResumeReview(memory = {}, options = {}) {
         compact(lastResolved.primaryReason || "No primary reason recorded."),
         `Record: ${formatDisplayPath(lastResolved.recordPath, options) || "none"}`,
         `Resume path: ${lastResolved.resumeCommand || `nornr-sentry --client ${client} --resume`}`,
+        ...(lastResolved.exportCommand ? [`Export path: ${lastResolved.exportCommand}`] : []),
       ],
     });
   }
@@ -181,8 +192,17 @@ export function buildResumeReview(memory = {}, options = {}) {
   if (lastPending?.reviewCommand) {
     nextEntries.push(lastPending.reviewCommand);
   }
+  if (lastPending?.exportCommand) {
+    nextEntries.push(lastPending.exportCommand);
+  }
   if (lastResolved?.recordPath) {
-    nextEntries.push(`nornr-sentry --client ${client} --export-record ${lastResolved.recordPath}`);
+    nextEntries.push(lastResolved.exportCommand || `nornr-sentry --client ${client} --export-record ${lastResolved.recordPath}`);
+  }
+  if (lastResolved?.replayCommand) {
+    nextEntries.push(lastResolved.replayCommand);
+  }
+  if (lastResolved?.proofHubCommand) {
+    nextEntries.push(lastResolved.proofHubCommand);
   }
   if (!nextEntries.length) {
     nextEntries.push(`nornr-sentry --client ${client} --first-stop`);
