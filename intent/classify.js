@@ -103,6 +103,50 @@ const DEMO_LIBRARY = {
   },
 };
 
+function promptExcerpt(value = "", maxLength = 180) {
+  const normalized = String(value ?? "").replace(/\s+/g, " ").trim();
+  if (normalized.length <= maxLength) return normalized;
+  return `${normalized.slice(0, Math.max(0, maxLength - 1)).trimEnd()}…`;
+}
+
+function toolNamesFromProviderBody(body = {}) {
+  return Array.from(new Set((Array.isArray(body?.tools) ? body.tools : [])
+    .map((tool) => normalizeText(tool?.name || tool?.function?.name))
+    .filter(Boolean)));
+}
+
+function inferProviderFamily(body = {}) {
+  const provider = normalizeText(body?.provider || body?.metadata?.provider || body?.metadata?.nornrProvider).toLowerCase();
+  if (provider) return provider;
+  const model = normalizeText(body?.model).toLowerCase();
+  if (model.startsWith("claude")) return "anthropic";
+  if (model.startsWith("gpt") || model.includes("o1") || model.includes("o3")) return "openai";
+  if (Array.isArray(body?.messages)) return "anthropic";
+  if (body?.input || body?.instructions) return "openai";
+  return "provider";
+}
+
+function buildIntentAttribution(action = {}, options = {}) {
+  const source = normalizeText(options.source || action.source || "incoming_action") || "incoming_action";
+  const prompt = normalizeText(action.rawIntent || options.rawIntent || "");
+  const provider = normalizeText(options.provider || action.provider || "");
+  const toolNames = Array.from(new Set([
+    normalizeText(action.tool),
+    ...(Array.isArray(options.toolNames) ? options.toolNames.map((entry) => normalizeText(entry)) : []),
+  ].filter(Boolean)));
+  return {
+    source,
+    provider,
+    model: normalizeText(options.model || action.model || ""),
+    endpoint: normalizeText(options.endpoint || action.endpoint || ""),
+    promptExcerpt: promptExcerpt(prompt),
+    toolNames,
+    target: normalizeText(action.target || options.target || ""),
+    path: normalizeText(action.path || options.path || ""),
+    counterparty: normalizeText(action.counterparty || options.counterparty || ""),
+  };
+}
+
 export function classifyDemoIntent(demo = "destructive_shell") {
   const item = DEMO_LIBRARY[demo];
   if (!item) {
@@ -112,6 +156,7 @@ export function classifyDemoIntent(demo = "destructive_shell") {
     kind: "nornr.sentry.intent.v1",
     generatedAt: new Date().toISOString(),
     ...item,
+    attribution: buildIntentAttribution(item, { source: "demo" }),
   };
 }
 
@@ -191,7 +236,7 @@ function inferActionClass(action = {}) {
 export function classifyIncomingIntent(action = {}) {
   const actionClass = inferActionClass(action);
   const fallback = DEMO_LIBRARY[actionClass];
-  return {
+  const normalizedAction = {
     kind: "nornr.sentry.intent.v1",
     generatedAt: new Date().toISOString(),
     actionClass,
@@ -205,6 +250,18 @@ export function classifyIncomingIntent(action = {}) {
     destructive: Boolean(action.destructive ?? fallback.destructive),
     outbound: Boolean(action.outbound ?? fallback.outbound),
     lineage: normalizeLineage(action),
+  };
+  return {
+    ...normalizedAction,
+    attribution: buildIntentAttribution(normalizedAction, action.attribution && typeof action.attribution === "object"
+      ? action.attribution
+      : {
+          source: action.source || "incoming_action",
+          provider: action.provider || "",
+          model: action.model || "",
+          endpoint: action.endpoint || "",
+          toolNames: action.toolNames || [],
+        }),
   };
 }
 
@@ -253,7 +310,16 @@ function inferToolFromProviderBody(body = {}) {
 export function classifyProviderRequest(body = {}) {
   const hintedAction = body.metadata?.nornrAction;
   if (hintedAction && typeof hintedAction === "object") {
-    return classifyIncomingIntent(hintedAction);
+    return classifyIncomingIntent({
+      ...hintedAction,
+      attribution: {
+        ...(hintedAction.attribution && typeof hintedAction.attribution === "object" ? hintedAction.attribution : {}),
+        source: "provider_request",
+        provider: inferProviderFamily(body),
+        model: normalizeText(body.model),
+        toolNames: toolNamesFromProviderBody(body),
+      },
+    });
   }
 
   const rawIntent = collectProviderText(body);
@@ -275,5 +341,11 @@ export function classifyProviderRequest(body = {}) {
     spendUsd,
     destructive: /delete|remove all|rm -rf|drop table|wipe/i.test(rawIntent),
     outbound: /email|send to|post to|slack|discord|webhook/i.test(rawIntent),
+    attribution: {
+      source: "provider_request",
+      provider: inferProviderFamily(body),
+      model: normalizeText(body.model),
+      toolNames: toolNamesFromProviderBody(body),
+    },
   });
 }

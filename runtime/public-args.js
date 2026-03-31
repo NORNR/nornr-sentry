@@ -10,6 +10,7 @@ const SUPPORTED_DEMOS = new Set([
 ]);
 const DEFAULT_WINDOW_MINUTES = 10;
 const SUPPORTED_PROTECT_PRESETS = new Set(["repo", "secrets", "production", "spend", "outbound"]);
+const SUPPORTED_TRUST_MODES = new Set(["standard", "strict", "observe-first", "repo-safe", "prod-locked", "finance-guarded", "outbound-guarded"]);
 const DISALLOWED_PREFIXES = [
   "--remote-approval",
   "--hosted-",
@@ -54,6 +55,9 @@ function buildDefaults() {
     summary: false,
     proofHub: false,
     firstStop: false,
+    doctor: false,
+    resume: false,
+    evalHarness: false,
     protectPresets: false,
     clientPaths: false,
     scalePath: false,
@@ -77,6 +81,7 @@ function buildDefaults() {
     records: false,
     guidedSetup: false,
     protectPreset: "",
+    trustMode: "",
     runtimeContext: "",
     serve: false,
     shadowMode: process.env.NORNR_SHADOW_MODE === "1",
@@ -216,6 +221,23 @@ export function parsePublicArgs(argv = process.argv.slice(2)) {
     if (token === "--protect" && argv[index + 1]) {
       parsed.protectPreset = argv[index + 1];
       index += 1;
+      continue;
+    }
+    if (token === "--trust-mode" && argv[index + 1]) {
+      parsed.trustMode = argv[index + 1];
+      index += 1;
+      continue;
+    }
+    if (token === "--doctor") {
+      parsed.doctor = true;
+      continue;
+    }
+    if (token === "--resume") {
+      parsed.resume = true;
+      continue;
+    }
+    if (token === "--eval-harness") {
+      parsed.evalHarness = true;
       continue;
     }
     if (token === "--policy-replay") {
@@ -379,6 +401,9 @@ export function parsePublicArgs(argv = process.argv.slice(2)) {
   }
   if (parsed.protectPreset && !SUPPORTED_PROTECT_PRESETS.has(parsed.protectPreset)) {
     throw new Error(`Unsupported protect preset "${parsed.protectPreset}".`);
+  }
+  if (parsed.trustMode && !SUPPORTED_TRUST_MODES.has(parsed.trustMode)) {
+    throw new Error(`Unsupported trust mode "${parsed.trustMode}".`);
   }
   if (parsed.copyShare && !["summary", "x", "slack", "issue", "markdown"].includes(parsed.copyShare)) {
     throw new Error(`Unsupported share copy variant "${parsed.copyShare}".`);

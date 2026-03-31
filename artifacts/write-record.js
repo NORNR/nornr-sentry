@@ -83,6 +83,9 @@ function buildPortableDefendedRecord(envelope = {}, filePath = "") {
       || "",
     operatorAction: envelope.resolution?.operatorAction || envelope.operator?.resolvedAction || "",
     reasonDetails: envelope.decision?.reasonDetails || [],
+    decisionSupport: envelope.decisionSupport || null,
+    laneMemory: envelope.laneMemory || null,
+    transcriptAttribution: envelope.intent?.attribution || null,
     suggestedTightenDiff: envelope.resolution?.mandateSuggestion?.diffLines || [],
     timestamp: envelope.generatedAt || new Date().toISOString(),
   };
@@ -103,6 +106,7 @@ function buildDefendedRecordSharePack(envelope = {}, filePath = "", portablePath
   const recordId = buildRecordId(filePath);
   const headline = `${verdict}: ${title}`;
   const shareSummary = `Policy decision: ${verdict}. Reason: ${reason}`.trim();
+  const attribution = envelope.intent?.attribution || null;
   return {
     kind: "nornr.sentry.record_share.v1",
     exportedAt: new Date().toISOString(),
@@ -117,6 +121,9 @@ function buildDefendedRecordSharePack(envelope = {}, filePath = "", portablePath
     timestamp: envelope.generatedAt || new Date().toISOString(),
     intent: envelope.intent || null,
     reasonDetails: envelope.decision?.reasonDetails || [],
+    decisionSupport: envelope.decisionSupport || null,
+    laneMemory: envelope.laneMemory || null,
+    transcriptAttribution: attribution,
     mandateDiff: envelope.resolution?.mandateSuggestion?.diffLines || [],
     operatorAction,
     shareLines: [
@@ -124,6 +131,8 @@ function buildDefendedRecordSharePack(envelope = {}, filePath = "", portablePath
       `Defended record: ${recordId}`,
       shareSummary,
       `Operator action: ${operatorAction || "none"}`,
+      ...(attribution?.provider ? [`Provider: ${attribution.provider}${attribution.model ? ` / ${attribution.model}` : ""}`] : []),
+      ...(attribution?.toolNames?.length ? [`Tools: ${attribution.toolNames.join(", ")}`] : attribution?.target ? [`Target: ${attribution.target}`] : []),
     ],
   };
 }

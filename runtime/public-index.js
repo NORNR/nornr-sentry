@@ -30,6 +30,9 @@ import { buildRecordsBrowser, buildRecordsBrowserView, renderRecordsBrowser } fr
 import { buildProofHub, buildProofHubView, renderProofHub } from "./proof-hub.js";
 import { buildServeStatusView, renderServeStatus } from "./serve-status.js";
 import { buildRuntimeConfigView, renderRuntimeConfig } from "./runtime-config.js";
+import { buildDoctorReport, renderDoctorReport } from "./doctor.js";
+import { buildEvalHarness, renderEvalHarness } from "./eval-harness.js";
+import { buildResumeReview, renderResumeReview, readReviewMemory } from "./review-memory.js";
 import { maybePrintSentryUpdateNotice } from "./update-notifier.js";
 import { createLiveRuntimeController } from "./live-runtime.js";
 import { renderSentryWelcome } from "./welcome.js";
@@ -484,6 +487,25 @@ export async function runPublicSentryCli(argv = process.argv.slice(2), navigatio
       return runPublicSentryCli(surface.launchArgv, createNavigationState(parsed.__argv, navigation));
     }
     return { ...surface, scalePath: scale };
+  }
+
+  if (parsed.doctor) {
+    const report = await buildDoctorReport(parsed);
+    console.log(renderDoctorReport(report));
+    return { parsed, doctor: report };
+  }
+
+  if (parsed.resume) {
+    const memory = await readReviewMemory(parsed);
+    const resume = buildResumeReview(memory, parsed);
+    console.log(renderResumeReview(resume));
+    return { parsed, resume };
+  }
+
+  if (parsed.evalHarness) {
+    const report = buildEvalHarness(parsed);
+    console.log(renderEvalHarness(report));
+    return { parsed, evalHarness: report };
   }
 
   if (parsed.goldenPath) {

@@ -37,6 +37,24 @@ Fastest path to the first stop:
 npx nornr-sentry --first-stop
 ```
 
+Diagnose the real local path from install to proof:
+
+```bash
+npx nornr-sentry --doctor
+```
+
+Resume the latest local review context:
+
+```bash
+npx nornr-sentry --resume
+```
+
+Compare clean-room trust modes across the built-in scenario corpus:
+
+```bash
+npx nornr-sentry --eval-harness
+```
+
 Open the chooser only when you need a different desktop patch or provider wiring target:
 
 ```bash
@@ -87,6 +105,8 @@ npm run demo:cursor
 ## Experiment matrix
 
 See [FIRST_STOP_EXPERIMENT_MATRIX.md](./FIRST_STOP_EXPERIMENT_MATRIX.md) for the live public first-stop CTA/copy variants and the proof-step readout.
+
+See [CLEAN_ROOM_FEATURE_HARVEST.md](./CLEAN_ROOM_FEATURE_HARVEST.md) for the longer clean-room product and systems harvest behind the current Sentry roadmap.
 
 ## NPM release
 

@@ -4,6 +4,8 @@ import {
   buildProjectScopedMandatePatch,
   mandateNeedsProjectScope,
 } from "./mandate-state.js";
+import { buildDecisionSupport } from "./decision-support.js";
+import { rememberResolvedReview } from "./review-memory.js";
 import { updateDefendedRecord } from "../artifacts/write-record.js";
 
 function dedupe(items = []) {
@@ -117,12 +119,21 @@ export async function persistResolvedSession(session, operatorAction, options = 
     };
   }
 
+  const decisionSupport = buildDecisionSupport(
+    resolution.intent,
+    resolution.decision,
+    resolution.mandate,
+    resolution.laneMemory,
+    options,
+  );
   const recordPatch = options.recordPatch && typeof options.recordPatch === "object" ? options.recordPatch : {};
   const resolutionPatch = recordPatch.resolution && typeof recordPatch.resolution === "object" ? recordPatch.resolution : {};
   const restRecordPatch = { ...recordPatch };
   delete restRecordPatch.resolution;
   const updatedRecord = await updateDefendedRecord(resolution.record.filePath, {
     decision: resolution.decision,
+    decisionSupport,
+    laneMemory: resolution.laneMemory,
     operator: {
       resolvedAction: resolution.operatorAction,
     },
@@ -137,7 +148,7 @@ export async function persistResolvedSession(session, operatorAction, options = 
     ...restRecordPatch,
   });
 
-  return {
+  const persisted = {
     ...resolution,
     record: {
       ...resolution.record,
@@ -146,5 +157,9 @@ export async function persistResolvedSession(session, operatorAction, options = 
       sharePath: updatedRecord.sharePath,
       sharePack: updatedRecord.sharePack,
     },
+    decisionSupport,
   };
+
+  await rememberResolvedReview(persisted, options).catch(() => null);
+  return persisted;
 }

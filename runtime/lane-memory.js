@@ -72,6 +72,15 @@ export async function buildLaneMemory(intent = {}, options = {}, projectScope = 
     .reverse();
 
   const lastEntry = entries[0] || null;
+  const note = counts.tighten_mandate >= 2
+    ? "This lane usually ends in Tighten mandate. Consider a narrower boundary instead of repeat approvals."
+    : counts.approved_once >= 2 && counts.tighten_mandate === 0
+      ? "This lane has been approved once multiple times. It may need a dedicated trust mode or clearer scope."
+      : counts.blocked >= 2 && counts.approved_once === 0
+        ? "This lane repeatedly ends blocked. Keep the hard stop unless the mandate truly changed."
+        : laneRecords.length > 0
+          ? `Seen ${laneRecords.length} prior defended record${laneRecords.length === 1 ? "" : "s"} for this lane.`
+          : "First defended record for this lane.";
   return {
     actionClass,
     totalPrior: laneRecords.length,
@@ -80,8 +89,13 @@ export async function buildLaneMemory(intent = {}, options = {}, projectScope = 
     lastEntry,
     counts,
     entries,
-    summary: laneRecords.length > 0
-      ? `Seen ${laneRecords.length} prior defended record${laneRecords.length === 1 ? "" : "s"} for this lane.`
-      : "First defended record for this lane.",
+    summary: note,
+    recommendedAction: counts.tighten_mandate >= 2
+      ? "Tighten mandate"
+      : counts.approved_once >= 2 && counts.tighten_mandate === 0
+        ? "Trust mode"
+        : counts.blocked >= 2 && counts.approved_once === 0
+          ? "Keep blocked"
+          : "Observe more",
   };
 }

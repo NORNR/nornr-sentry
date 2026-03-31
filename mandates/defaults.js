@@ -28,6 +28,37 @@ export const PROTECT_PRESET_LIBRARY = {
   },
 };
 
+export const TRUST_MODE_LIBRARY = {
+  standard: {
+    label: "Standard trust",
+    summary: "Default local NORNR posture: block the sharp edges, review consequential lanes, and keep read-only work fast.",
+  },
+  strict: {
+    label: "Strict trust",
+    summary: "Fail colder: push consequential lanes into block-or-review and keep destructive, production, spend, and outbound paths tight.",
+  },
+  "observe-first": {
+    label: "Observe first",
+    summary: "Bias toward review instead of broad blocking while the team learns which local lanes deserve permanent boundaries.",
+  },
+  "repo-safe": {
+    label: "Repo safe",
+    summary: "Protect the repo first: keep destructive and out-of-scope writes blocked while safe read/write work stays local.",
+  },
+  "prod-locked": {
+    label: "Production locked",
+    summary: "Treat production and vendor mutation as hard-stop surfaces until an operator deliberately widens them.",
+  },
+  "finance-guarded": {
+    label: "Finance guarded",
+    summary: "Treat paid actions and vendor billing as explicit approval lanes with a colder spend threshold.",
+  },
+  "outbound-guarded": {
+    label: "Outbound guarded",
+    summary: "Keep outbound messages and anything that could leak secrets behind a deliberate human decision.",
+  },
+};
+
 function dedupe(items = []) {
   return Array.from(new Set((Array.isArray(items) ? items : []).map((item) => String(item || "").trim()).filter(Boolean)));
 }
@@ -36,9 +67,19 @@ export function supportedProtectPresets() {
   return Object.keys(PROTECT_PRESET_LIBRARY);
 }
 
+export function supportedTrustModes() {
+  return Object.keys(TRUST_MODE_LIBRARY);
+}
+
 export function normalizeProtectPreset(value = "") {
   const normalized = String(value || "").trim().toLowerCase();
   return PROTECT_PRESET_LIBRARY[normalized] ? normalized : "";
+}
+
+export function normalizeTrustMode(value = "") {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (!normalized) return "";
+  return TRUST_MODE_LIBRARY[normalized] ? normalized : "";
 }
 
 export function protectPresetLabel(preset = "") {
@@ -49,6 +90,16 @@ export function protectPresetLabel(preset = "") {
 export function protectPresetSummary(preset = "") {
   const normalized = normalizeProtectPreset(preset);
   return PROTECT_PRESET_LIBRARY[normalized]?.summary || PROTECT_PRESET_LIBRARY.repo.summary;
+}
+
+export function trustModeLabel(mode = "") {
+  const normalized = normalizeTrustMode(mode);
+  return TRUST_MODE_LIBRARY[normalized]?.label || TRUST_MODE_LIBRARY.standard.label;
+}
+
+export function trustModeSummary(mode = "") {
+  const normalized = normalizeTrustMode(mode);
+  return TRUST_MODE_LIBRARY[normalized]?.summary || TRUST_MODE_LIBRARY.standard.summary;
 }
 
 export function demoForProtectPreset(preset = "") {
@@ -144,6 +195,115 @@ function applyProtectPreset(baseMandate = {}, preset = "") {
   return next;
 }
 
+function applyTrustMode(baseMandate = {}, mode = "") {
+  const normalized = normalizeTrustMode(mode);
+  if (!normalized) return baseMandate;
+  if (normalized === "standard") {
+    return {
+      ...baseMandate,
+      trustMode: normalized,
+      trustModeLabel: trustModeLabel(normalized),
+      trustModeSummary: trustModeSummary(normalized),
+    };
+  }
+
+  const next = {
+    ...baseMandate,
+    trustMode: normalized,
+    trustModeLabel: trustModeLabel(normalized),
+    trustModeSummary: trustModeSummary(normalized),
+    limits: {
+      ...(baseMandate.limits || {}),
+      blockedActionClasses: dedupe(baseMandate.limits?.blockedActionClasses || []),
+      approvalActionClasses: dedupe(baseMandate.limits?.approvalActionClasses || []),
+    },
+    tools: {
+      ...(baseMandate.tools || {}),
+      allowed: dedupe(baseMandate.tools?.allowed || []),
+      blocked: dedupe(baseMandate.tools?.blocked || []),
+    },
+  };
+
+  if (normalized === "strict") {
+    next.limits.blockedActionClasses = dedupe([
+      ...next.limits.blockedActionClasses,
+      "destructive_shell",
+      "credential_exfiltration",
+      "production_mutation",
+      "paid_action",
+      "vendor_mutation",
+      "outbound_message",
+      "write_outside_scope",
+    ]);
+    next.limits.approvalActionClasses = dedupe([...next.limits.approvalActionClasses, "read_only"]);
+    next.limits.spendUsdAbove = 0;
+    next.limits.outboundRequiresApproval = true;
+    next.limits.destructiveActionsBlocked = true;
+    next.tools.blocked = dedupe([...next.tools.blocked, "send_email", "update_billing", "create_invoice", "apply_migration"]);
+    return next;
+  }
+
+  if (normalized === "observe-first") {
+    next.limits.blockedActionClasses = dedupe([
+      ...next.limits.blockedActionClasses,
+      "credential_exfiltration",
+      "destructive_shell",
+      "production_mutation",
+    ]);
+    next.limits.approvalActionClasses = dedupe([
+      ...next.limits.approvalActionClasses,
+      "paid_action",
+      "vendor_mutation",
+      "outbound_message",
+      "write_outside_scope",
+    ]);
+    next.limits.outboundRequiresApproval = true;
+    next.limits.spendUsdAbove = Math.min(Number(next.limits.spendUsdAbove || 25) || 25, 10);
+    return next;
+  }
+
+  if (normalized === "repo-safe") {
+    next.limits.blockedActionClasses = dedupe([
+      ...next.limits.blockedActionClasses,
+      "destructive_shell",
+      "write_outside_scope",
+      "production_mutation",
+    ]);
+    next.tools.blocked = dedupe([...next.tools.blocked, "exec_shell", "delete_tree"]);
+    return next;
+  }
+
+  if (normalized === "prod-locked") {
+    next.limits.blockedActionClasses = dedupe([
+      ...next.limits.blockedActionClasses,
+      "production_mutation",
+      "vendor_mutation",
+      "destructive_shell",
+    ]);
+    next.limits.approvalActionClasses = dedupe([...next.limits.approvalActionClasses, "paid_action"]);
+    next.tools.blocked = dedupe([...next.tools.blocked, "apply_migration", "update_billing"]);
+    return next;
+  }
+
+  if (normalized === "finance-guarded") {
+    next.limits.blockedActionClasses = dedupe([...next.limits.blockedActionClasses, "paid_action"]);
+    next.limits.approvalActionClasses = dedupe([...next.limits.approvalActionClasses, "vendor_mutation"]);
+    next.limits.spendUsdAbove = 1;
+    next.tools.blocked = dedupe([...next.tools.blocked, "create_invoice", "update_billing"]);
+    return next;
+  }
+
+  if (normalized === "outbound-guarded") {
+    next.limits.blockedActionClasses = dedupe([...next.limits.blockedActionClasses, "credential_exfiltration"]);
+    next.limits.approvalActionClasses = dedupe([...next.limits.approvalActionClasses, "outbound_message"]);
+    next.limits.outboundRequiresApproval = true;
+    next.tools.blocked = dedupe([...next.tools.blocked, "send_email"]);
+    return next;
+  }
+
+  return next;
+}
+
 export function buildDefaultMandate(shield = "cursor", options = {}) {
   const mandateId = options.mandateId || "mandate_local_airbag";
   const ownerId = options.ownerId || "owner_local_operator";
@@ -222,5 +382,5 @@ export function buildDefaultMandate(shield = "cursor", options = {}) {
     };
   }
 
-  return applyProtectPreset(mandate, options.protectPreset || "");
+  return applyTrustMode(applyProtectPreset(mandate, options.protectPreset || ""), options.trustMode || "");
 }

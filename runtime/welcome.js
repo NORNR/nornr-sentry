@@ -182,6 +182,13 @@ export function resolveSentryPaletteCommand(options = {}, rawInput = "") {
     case "proof":
     case "proof-hub":
       return { kind: "launch", argv: ["--client", shield, "--proof-hub"], label: "Proof hub" };
+    case "doctor":
+      return { kind: "launch", argv: ["--client", shield, "--doctor"], label: "Doctor" };
+    case "resume":
+      return { kind: "launch", argv: ["--client", shield, "--resume"], label: "Resume review" };
+    case "eval":
+    case "eval-harness":
+      return { kind: "launch", argv: ["--client", shield, "--eval-harness"], label: "Eval harness" };
     case "golden":
     case "golden-path":
     case "wizard":

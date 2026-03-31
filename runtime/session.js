@@ -5,6 +5,8 @@ import { classifyDemoIntent, classifyIncomingIntent } from "../intent/classify.j
 import { buildFastPathAllow } from "./fast-path.js";
 import { buildActiveMandate } from "./mandate-state.js";
 import { buildLaneMemory } from "./lane-memory.js";
+import { buildDecisionSupport } from "./decision-support.js";
+import { rememberPendingReview } from "./review-memory.js";
 import { resolveRecordRootDir } from "./storage-paths.js";
 
 async function buildSessionFromIntent(intent, options = {}) {
@@ -24,6 +26,7 @@ async function buildSessionFromIntent(intent, options = {}) {
     ...options,
     recordRootDir,
   }, projectScope);
+  const decisionSupport = buildDecisionSupport(intent, decision, mandate, laneMemory, options);
   const record = await writeDefendedRecord(
     {
       client: {
@@ -33,6 +36,7 @@ async function buildSessionFromIntent(intent, options = {}) {
       mandate,
       intent,
       decision,
+      decisionSupport,
       laneMemory,
       operator: {
         ownerId: options.ownerId,
@@ -44,7 +48,7 @@ async function buildSessionFromIntent(intent, options = {}) {
     },
   );
 
-  return {
+  const session = {
     adapter,
     mandate,
     mandatePath,
@@ -55,6 +59,7 @@ async function buildSessionFromIntent(intent, options = {}) {
     storedMandate,
     fastPathAllow,
     laneMemory,
+    decisionSupport,
     runtime: {
       screenshotMode: Boolean(options.screenshotMode),
       recordingMode: Boolean(options.recordingMode),
@@ -62,9 +67,17 @@ async function buildSessionFromIntent(intent, options = {}) {
     },
     statusLine:
       decision.status === "blocked"
-        ? "Sentry active. Dangerous action stopped before becoming real."
-        : "Sentry active. Current action can clear under the active mandate.",
+        ? `Sentry active. Dangerous action stopped before becoming real. ${decisionSupport.reasoningSummary}`
+        : `Sentry active. Current action can clear under the active mandate. ${decisionSupport.reasoningSummary}`,
   };
+
+  await rememberPendingReview(session, {
+    ...options,
+    recordRootDir,
+    projectScope,
+  }).catch(() => null);
+
+  return session;
 }
 
 export async function buildSentrySession(options = {}) {

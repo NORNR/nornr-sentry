@@ -1,6 +1,6 @@
 {
   "name": "nornr-sentry",
-  "version": "0.2.7",
+  "version": "0.2.8",
   "private": false,
   "type": "module",
   "description": "NORNR Sentry — stop one dangerous agent action before it becomes real",
@@ -27,6 +27,7 @@
     "README.md",
     "PUBLIC_SURFACE.md",
     "FIRST_STOP_EXPERIMENT_MATRIX.md",
+    "CLEAN_ROOM_FEATURE_HARVEST.md",
     "LICENSE",
     "bin",
     "runtime",
@@ -47,7 +48,7 @@
     "nornr-sentry": "bin/nornr-sentry.js"
   },
   "scripts": {
-    "check": "node --check bin/nornr-sentry.js && node --check runtime/public-index.js && node --check runtime/public-args.js && node --check runtime/activation-report.js && node --check runtime/public-server.js && node --check runtime/session.js && node --check runtime/provider-proxy.js && node --check runtime/resolution.js && node --check runtime/recording-flow.js && node --check runtime/patch-cursor.js && node --check runtime/summary.js && node --check runtime/policy-replay.js && node --check runtime/proof-hub.js && node --check runtime/decision-trace.js && node --check runtime/record-export.js && node --check runtime/share-proof.js && node --check runtime/record-replay.js && node --check runtime/records-browser.js && node --check runtime/first-run.js && node --check runtime/golden-path.js && node --check runtime/growth-paths.js && node --check runtime/lane-memory.js && node --check runtime/mandate-learner.js && node --check runtime/mandate-state.js && node --check runtime/runtime-config.js && node --check runtime/live-runtime.js && node --check runtime/reason-normalization.js && node --check runtime/serve-activity.js && node --check runtime/serve-status.js && node --check runtime/storage-paths.js && node --check runtime/terminal-theme.js && node --check runtime/update-notifier.js && node --check runtime/welcome.js && node --check adapters/clients.js && node --check intent/classify.js && node --check mandates/defaults.js && node --check decisions/evaluate.js && node --check artifacts/write-record.js && node --check tui/app.js",
+    "check": "node --check bin/nornr-sentry.js && node --check runtime/public-index.js && node --check runtime/public-args.js && node --check runtime/activation-report.js && node --check runtime/public-server.js && node --check runtime/session.js && node --check runtime/provider-proxy.js && node --check runtime/resolution.js && node --check runtime/recording-flow.js && node --check runtime/patch-cursor.js && node --check runtime/summary.js && node --check runtime/policy-replay.js && node --check runtime/proof-hub.js && node --check runtime/decision-trace.js && node --check runtime/decision-support.js && node --check runtime/doctor.js && node --check runtime/eval-harness.js && node --check runtime/record-export.js && node --check runtime/share-proof.js && node --check runtime/record-replay.js && node --check runtime/records-browser.js && node --check runtime/first-run.js && node --check runtime/golden-path.js && node --check runtime/growth-paths.js && node --check runtime/lane-memory.js && node --check runtime/mandate-learner.js && node --check runtime/mandate-state.js && node --check runtime/runtime-config.js && node --check runtime/live-runtime.js && node --check runtime/reason-normalization.js && node --check runtime/serve-activity.js && node --check runtime/serve-status.js && node --check runtime/storage-paths.js && node --check runtime/terminal-theme.js && node --check runtime/update-notifier.js && node --check runtime/review-memory.js && node --check runtime/welcome.js && node --check adapters/clients.js && node --check intent/classify.js && node --check mandates/defaults.js && node --check decisions/evaluate.js && node --check artifacts/write-record.js && node --check tui/app.js",
     "demo:cursor": "node bin/nornr-sentry.js --client cursor --demo destructive_shell",
     "demo:claude": "node bin/nornr-sentry.js --client claude-desktop --demo paid_action",
     "demo:screenshot": "node bin/nornr-sentry.js --client cursor --demo destructive_shell --screenshot-mode",

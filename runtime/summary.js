@@ -48,6 +48,7 @@ function withinLastWeek(timestamp) {
 
 export async function buildSentrySummary(options = {}) {
   const rootDir = resolveRecordRootDir(options);
+  const trustModeCounts = new Map();
   const files = await readRecordFiles(rootDir);
   const records = [];
 
@@ -81,6 +82,8 @@ export async function buildSentrySummary(options = {}) {
     statusCounts[status] = (statusCounts[status] || 0) + 1;
 
     const actionClass = String(record?.intent?.actionClass || "unknown").trim() || "unknown";
+    const trustMode = String(record?.mandate?.trustMode || "standard").trim() || "standard";
+    trustModeCounts.set(trustMode, (trustModeCounts.get(trustMode) || 0) + 1);
     const currentLane = laneCounts.get(actionClass) || { actionClass, total: 0, blocked: 0, lastAt: "" };
     currentLane.total += 1;
     if (isPreventedStatus(status)) currentLane.blocked += 1;
@@ -125,6 +128,10 @@ export async function buildSentrySummary(options = {}) {
         if ((right.total || 0) !== (left.total || 0)) return (right.total || 0) - (left.total || 0);
         return new Date(right.lastAt || 0).getTime() - new Date(left.lastAt || 0).getTime();
       })
+      .slice(0, 3),
+    trustModeMix: Array.from(trustModeCounts.entries())
+      .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
+      .map(([trustMode, count]) => ({ trustMode, count }))
       .slice(0, 3),
   };
 }
@@ -188,6 +195,10 @@ export function buildSentrySummaryView(summary, explicitColumns) {
       ...(summary.topLanes?.length ? [{
         label: "Hot lanes",
         lines: summary.topLanes.map((lane) => `${lane.actionClass}: ${lane.total} records · blocked ${lane.blocked || 0}`),
+      }] : []),
+      ...(summary.trustModeMix?.length ? [{
+        label: "Trust mode mix",
+        lines: summary.trustModeMix.map((entry) => `${entry.trustMode}: ${entry.count}`),
       }] : []),
     ],
     footer: compact ? [] : [

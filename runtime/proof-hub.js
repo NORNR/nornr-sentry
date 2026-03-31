@@ -114,6 +114,24 @@ export async function buildProofHub(options = {}) {
         commandLines: [`nornr-sentry --client ${shield} --summary`],
         detailLines: ["See the local posture and latest defended record signals."],
       },
+      {
+        label: "Run doctor",
+        argv: ["--client", shield, "--doctor"],
+        commandLines: [`nornr-sentry --client ${shield} --doctor`],
+        detailLines: ["Diagnose install path, boundary, proof queue, and review memory in one pass."],
+      },
+      {
+        label: "Resume review",
+        argv: ["--client", shield, "--resume"],
+        commandLines: [`nornr-sentry --client ${shield} --resume`],
+        detailLines: ["Re-open the latest local review context and recent operator decisions."],
+      },
+      {
+        label: "Run eval harness",
+        argv: ["--client", shield, "--eval-harness"],
+        commandLines: [`nornr-sentry --client ${shield} --eval-harness`],
+        detailLines: ["Compare the current protect preset across clean-room trust modes."],
+      },
     ], recommendation);
   return {
     kind: "nornr.sentry.proof_hub.v1",

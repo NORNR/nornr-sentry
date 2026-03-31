@@ -38,6 +38,8 @@ export async function exportSentryDefendedRecord(options = {}) {
   const reason = result.sharePack?.reason || "No reason recorded.";
   const shareVariants = buildShareVariants(result);
   const shareSafeLines = (shareVariants.summary || "").split("\n").filter(Boolean);
+  const decisionSupport = result.sharePack?.decisionSupport || {};
+  const transcriptAttribution = result.sharePack?.transcriptAttribution || {};
   return {
     ...result,
     screenshotMode: Boolean(options.screenshotMode),
@@ -47,14 +49,18 @@ export async function exportSentryDefendedRecord(options = {}) {
     storyLines: [
       `Stopped: ${headline}`,
       `Why it mattered: ${reason}`,
+      `Safest next action: ${decisionSupport.safestAction || "Block"}`,
+      `Next command: ${decisionSupport.nextCommand || `nornr-sentry --client ${shield} --records`}`,
       `Artifact: defended record, portable export, and share pack are now attached to this lane.`,
-      `Next: open the proof queue or copy a public-safe summary.`,
     ],
     reviewSummaryLines: [
       `Proof id: ${result.sharePack?.recordId || "local"}`,
       `Operator action: ${result.sharePack?.operatorAction || "none"}`,
       `Lane: ${lane}`,
       `${reason}`,
+      ...(decisionSupport.approvalMemoryNote ? [`Approval memory: ${decisionSupport.approvalMemoryNote}`] : []),
+      ...(transcriptAttribution.provider ? [`Provider: ${transcriptAttribution.provider}${transcriptAttribution.model ? ` / ${transcriptAttribution.model}` : ""}`] : []),
+      ...(transcriptAttribution.toolNames?.length ? [`Tools: ${transcriptAttribution.toolNames.join(", ")}`] : []),
     ],
     shareCopyEntries: buildShareCopyEntries(result, shield),
     suggestedCommands: [
@@ -139,6 +145,7 @@ export function buildSentryDefendedRecordExportView(result = {}, explicitColumns
           `Operator action: ${result.sharePack?.operatorAction || "none"}`,
           `Lane: ${actionClassLabel(result.sharePack?.intent?.actionClass || "unknown")}`,
           `Verdict: ${titleCase(String(result.sharePack?.verdict || "blocked").replace(/_/g, " "))}`,
+          ...(result.sharePack?.decisionSupport?.mandateDiffHint ? [`Boundary hint: ${result.sharePack.decisionSupport.mandateDiffHint}`] : []),
         ],
       },
       {
@@ -157,6 +164,14 @@ export function buildSentryDefendedRecordExportView(result = {}, explicitColumns
           `Share pack: ${formatDisplayPath(result.sharePath, result)}`,
         ],
       }] : []),
+      {
+        label: "Tool / request attribution",
+        lines: [
+          `Source: ${result.sharePack?.transcriptAttribution?.source || "local"}`,
+          `Prompt excerpt: ${result.sharePack?.transcriptAttribution?.promptExcerpt || "none recorded"}`,
+          `Target: ${result.sharePack?.transcriptAttribution?.target || "none recorded"}`,
+        ],
+      },
       {
         label: "Review handoff",
         lines: result.reviewSummaryLines || [],
