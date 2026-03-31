@@ -138,6 +138,8 @@ See [FIRST_STOP_EXPERIMENT_MATRIX.md](./FIRST_STOP_EXPERIMENT_MATRIX.md) for the
 
 See [CLEAN_ROOM_FEATURE_HARVEST.md](./CLEAN_ROOM_FEATURE_HARVEST.md) for the longer clean-room product and systems harvest behind the current Sentry roadmap.
 
+See [SENTRY_1_0_SPEC.md](./SENTRY_1_0_SPEC.md) for the formal 1.0 boundary, canonical proof set, canonical commands, and release criteria.
+
 ## NPM release
 
 ```bash

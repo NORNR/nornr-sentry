@@ -1,6 +1,6 @@
 {
   "name": "nornr-sentry",
-  "version": "0.2.9",
+  "version": "1.0.0",
   "private": false,
   "type": "module",
   "description": "NORNR Sentry — stop one dangerous agent action before it becomes real",
@@ -28,6 +28,7 @@
     "PUBLIC_SURFACE.md",
     "FIRST_STOP_EXPERIMENT_MATRIX.md",
     "CLEAN_ROOM_FEATURE_HARVEST.md",
+    "SENTRY_1_0_SPEC.md",
     "LICENSE",
     "bin",
     "runtime",

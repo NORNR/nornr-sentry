@@ -15,6 +15,8 @@ This v2 is both:
 - a **strategy doc** for what the clean-room harvest means
 - an **implementation ledger** for what is already built vs what is still missing
 
+The formal 1.0 release boundary is documented separately in [SENTRY_1_0_SPEC.md](./SENTRY_1_0_SPEC.md).
+
 ---
 
 ## Product principle to keep
